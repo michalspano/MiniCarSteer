@@ -2,16 +2,16 @@
 
 TODO: add missing sections about the project and the product.
 
-<!-- TODO: Using Docker instead? Revisit the feasability of the current
+<!-- TODO: Using Docker instead? Revisit the feasibility of the current
      instructions. -->
-## Setup `Python` Virtual Environnment
+## Setup `Python` Virtual Environment
 
 Create a `Python` virtual environment:
 ```sh
 python3 -m venv <name> # `venv` is commonly used as <name>
 ```
 
-*Acivate*/ *deactivate* the virtual environment:
+*Activate*/ *deactivate* the virtual environment:
 ```sh
 # Activate the venv
 source ./<name>/bin/activate
