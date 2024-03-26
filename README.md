@@ -2,6 +2,8 @@
 
 TODO: add missing sections about the project and the product.
 
+**Improved formatting**
+
 <!-- TODO: Using Docker instead? Revisit the feasibility of the current
      instructions. -->
 
