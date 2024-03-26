@@ -75,3 +75,6 @@ is related to that issue. That is:
 ```sh
 git commit -m "#<Issue number> <Commit message>" -m "<Commit description>"
 ```
+
+## Development team
+- @alesaf
