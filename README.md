@@ -78,3 +78,4 @@ git commit -m "#<Issue number> <Commit message>" -m "<Commit description>"
 
 ## Development team
 - @alesaf
+- @arumeel
