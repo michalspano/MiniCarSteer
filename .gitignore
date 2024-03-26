@@ -1,0 +1,9 @@
+# Exclude macOS binary
+*.DS_Store
+
+# Exclude out-of-tree build
+build
+
+# Exclude IDE clutter
+.vscode
+.idea
