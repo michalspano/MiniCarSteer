@@ -4,21 +4,19 @@ TODO: add missing sections about the project and the product.
 
 <!-- TODO: Using Docker instead? Revisit the feasibility of the current
      instructions. -->
-## Setup `Python` Virtual Environment
 
-Create a `Python` virtual environment:
-```sh
-python3 -m venv <name> # `venv` is commonly used as <name>
-```
+## Prerequisites
 
-*Activate*/ *deactivate* the virtual environment:
-```sh
-# Activate the venv
-source ./<name>/bin/activate
+- [`git`][git]
+- A compatible `C++` [compiler][cpp-compiler] (e.g. `g++`)
+- [`CMake`][cmake]
+- [`Docker`][docker]
 
-# Deactivate the venv
-deactivate
-```
+<!-- LINKS -->
+[git]: https://git-scm.com/downloads
+[cpp-compiler]: https://gcc.gnu.org/
+[cmake]: https://cmake.org/
+[docker]: https://docs.docker.com/get-docker/
 
 ## Clone the Repository
 
@@ -26,18 +24,23 @@ deactivate
 git clone git@git.chalmers.se:courses/dit638/students/2024-group-09.git
 ```
 
-## Install `pip` Dependencies
+## Build and Run the Program
 
 ```sh
-pip3 install -r requirements.txt
-```
+# Make an out-of-tree build folder
+mkdir build
 
-## Execute the `main` Module
+# Navigate to the build directory
+cd build
 
-```sh
-python3 main.py
-# or
-./main.py
+# Create "Makefile" using the CMakeLists.txt that resides in the root
+cmake ..
+
+# Build the program using the generated make
+make
+
+# Run the program
+./main
 ```
 
 # Workflow
