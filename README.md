@@ -83,3 +83,4 @@ git commit -m "#<Issue number> <Commit message>" -m "<Commit description>"
 - @alesaf
 - @arumeel
 - @spano
+- @omidk
