@@ -34,7 +34,8 @@ before_script:
   - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
   - apk add curl
   - curl --location --output /usr/local/bin/release-cli "https://gitlab.com/api/v4/projects/gitlab-org%2Frelease-cli/packages/generic/release-cli/latest/release-cli-linux-amd64"
-  - chmod +x release-cli
+  - chmod +x /usr/local/bin/release-cli
+
 
 # This section describes what shall be done to build and test the project.
 build-and-test:
