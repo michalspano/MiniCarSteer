@@ -6,7 +6,6 @@ MAINTAINER Christian Berger christian.berger@gu.se
 RUN apt-get update -y && \
     apt-get upgrade -y && \
     apt-get dist-upgrade -y && \
-    curl -sSL https://example.com/release-cli | sh
 
 RUN apt-get install -y --no-install-recommends \
         cmake \
