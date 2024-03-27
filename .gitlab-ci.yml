@@ -53,8 +53,16 @@ release_job:
     # - if: $CI_COMMIT_TAG 
     # - if: "$CI_COMMIT_TAG =~ '^v\\d+\\.\\d+\\.\\d+$'"
   script:
-    - docker build -f Dockerfile -t "$CI_REGISTRY_IMAGE":"$CI_COMMIT_TAG" .
-    - docker push "$CI_REGISTRY_IMAGE":"$CI_COMMIT_TAG"
+    - |
+      if [[ "$CI_COMMIT_TAG" =~ ^v\d+\.\d+\.\d+$ ]]; then
+        echo "Semantic versioning check passed for tag: $CI_COMMIT_TAG"
+        # Add your deployment logic here
+        docker build -f Dockerfile -t "$CI_REGISTRY_IMAGE":"$CI_COMMIT_TAG" .
+        docker push "$CI_REGISTRY_IMAGE":"$CI_COMMIT_TAG"
+      else
+        echo "Tag $CI_COMMIT_TAG does not follow semantic versioning"
+        exit 1  # Exit with non-zero status to fail the job
+      fi
   # Ensure that we only deploy when the project could be built and tested successfully
   needs:
     - job: build-and-test
