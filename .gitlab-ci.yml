@@ -42,7 +42,7 @@ build-and-test:
     - docker build -f Dockerfile .
 
 # This section describes what shall be done to deploy artefacts from the project.
-release:
+release_job:
   tags:
     - docker-build
   stage: deploy
@@ -56,3 +56,5 @@ release:
   # Ensure that we only deploy when the project could be built and tested successfully
   needs:
     - job: build-and-test
+  release:
+    tag_name: '$CI_COMMIT_TAG'
