@@ -42,7 +42,7 @@ cmake ..
 make
 
 # Run the program
-./main
+./helloworld <integer argument>
 ```
 
 # Workflow
