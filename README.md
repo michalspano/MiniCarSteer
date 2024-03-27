@@ -1,3 +1,5 @@
+![pipeline status](https://git.chalmers.se/courses/dit638/students/2024-group-09/badges/main/pipeline.svg)
+
 # Cyber-Physical Systems, System of Systems -- Group 9
 
 TODO: add missing sections about the project and the product.
