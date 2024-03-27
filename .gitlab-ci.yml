@@ -46,6 +46,7 @@ release_job:
   tags:
     - docker-build
   stage: deploy
+  image: registry.gitlab.com/gitlab-org/release-cli:latest
   # The job is run on tag commits only
   only:
     - tags
