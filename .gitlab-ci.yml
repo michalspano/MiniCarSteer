@@ -14,6 +14,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 # Which Docker image shall be used on the GitLab runner?
+# The image contains docker within docker on a alpine linux system
 image: docker:26.0.0-dind-alpine3.19
 
 # Details about how to connect to the Docker service to run this build.
@@ -21,14 +22,21 @@ variables:
   DOCKER_HOST: tcp://docker:2375
   DOCKER_TLS_CERTDIR: ""
 
+# Services are other images run as their own container on the pipeline
+# We have docker in docker service, meaning that a container that has docker installed on it
 services:
   - name: docker:26.0.0-dind
 
+# We have two stages: build stage which is used to build and test the application
+# and deploy which is used to deploy the application's docker image and make a release
 stages:
   - build
   - deploy
 
 # Display information before we start the build.
+# Moreover, install curl which is used to download apps
+# Download release-cli which is used to make a release in the release_job
+# Since we use alpine distro, we use apk and not apt
 before_script:
   - docker info
   - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
@@ -39,13 +47,15 @@ before_script:
 
 # This section describes what shall be done to build and test the project.
 build-and-test:
+  # We use docker-build to use the runner that can compose docker containers
   tags:
     - docker-build
   stage: build
+  # Build the docker image using the Dockerfile in the root of the repository
   script:
     - docker build -f Dockerfile .
 
-# This section describes what shall be done to deploy artefacts from the project.
+# This section describes what shall be done to deploy artifacts from the project.
 release_job:
   tags:
     - docker-build
@@ -53,6 +63,10 @@ release_job:
   # The job is run on tag commits only
   only:
     - tags
+  # Check that the tag commit name follows semantic versioning by checking it with the regex that makes sure 
+  # the tag commit name is in the form of vX.Y.Z where X, Y, and Z are numbers
+  # If the tag commit name follows semantic versioning build the using the provided version as name
+  # If not, write error message and exit with code 1 to indicate failure
   script:
     - |
       if [[ "$CI_COMMIT_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
@@ -67,6 +81,7 @@ release_job:
   # Ensure that we only deploy when the project could be built and tested successfully
   needs:
     - job: build-and-test
+  # Make a release that has the version as its name and description
   release:
     tag_name: '$CI_COMMIT_TAG'
     description: '$CI_COMMIT_TAG'
