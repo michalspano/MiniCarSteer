@@ -81,9 +81,6 @@ release_job:
         echo "$CI_COMMIT_TAG"
         exit 1
       fi
-  # Ensure that we only deploy when the project could be built and tested successfully
-  needs:
-    - job: build-and-test
   # Make a release that has the version as its name and description
   release:
     tag_name: '$CI_COMMIT_TAG'
