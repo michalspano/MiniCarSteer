@@ -51,6 +51,9 @@ build-and-test:
   tags:
     - docker-build
   stage: build
+  # Build-and-test job is only executed for branch commits
+  only:
+    - branches
   # Build the docker image using the Dockerfile in the root of the repository
   script:
     - docker build -f Dockerfile .
