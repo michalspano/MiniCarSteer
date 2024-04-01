@@ -72,7 +72,12 @@ release_job:
   # If not, write error message and exit with code 1 to indicate failure
   script:
     - |
-      if [[ "$CI_COMMIT_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+      # Verify the format of the tag commit name.
+      # `\d+` to denote a digit is not part of basic regular expressions. We
+      # pass the `-E` flag to `grep` to parse an extended regular expression
+      # that supports `\d+`. This makes the solution more flexible and can
+      # support any number and not just 0 through 9 (if [0-9] is used).
+      if echo "$CI_COMMIT_TAG" | grep -E '^v\d+\.\d+\.\d+$' > /dev/null; then
         echo "Version is valid."
         docker build -f Dockerfile -t "$CI_REGISTRY_IMAGE":"$CI_COMMIT_TAG" .
         docker push "$CI_REGISTRY_IMAGE":"$CI_COMMIT_TAG"
