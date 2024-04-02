@@ -26,7 +26,7 @@ we will all share what we have worked on, what were our challenges and
 solutions for them. This way, every group member learns about all aspects of
 the project.
 
-<!--The following text has been suggested by LLM Mistral:-->
+The following text has been suggested by LLM Mistral and the group has agreed to incorporate the ideas:
 Each member of the team is obligated to take part of all of the meetings, to
 ensure that they do not miss out on something. Furthermore, team members are
 encouraged to document their work, so that other members can resume their work
@@ -43,5 +43,14 @@ We will vote on conflicts via `Discord`, and majority decides.
 
 ### LLM Policy, Transparency, and Traceability
 
-We will prepend all generated (or LLM improved) content as the following:
-`LLM <modelname>: [...]`.
+Our group **allows** the usage of LLMs in all aspects of the project. However, the usage has to be clearly documented.
+
+That is, all discussions with the LLM (including the prompt and answer(s) from LLM) shall be documented as separate `TXT` files on `Gitlab` inside the `docs/llm-discussion` folder.
+Each file is labeled `X.txt` where
+`X` is a number which increases for every file. Moreover, each `TXT` file contains the following **heading** to clearly state the model (and the version) of the LLM in use of that discussion:
+
+```txt
+## LLM: <MODEL:VERSION> ##
+```
+
+The file name has to be referenced to wherever the ideas of that LLM discussion are used, in order to have **clear traceability**.
