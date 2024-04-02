@@ -1,0 +1,94 @@
+# Copyright (C) 2023  Christian Berger
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+# Which Docker image shall be used on the GitLab runner?
+# The image contains docker within docker on a alpine linux system
+image: docker:26.0.0-dind-alpine3.19
+
+# Details about how to connect to the Docker service to run this build.
+variables:
+  DOCKER_HOST: tcp://docker:2375
+  DOCKER_TLS_CERTDIR: ""
+
+# Services are other images run as their own container on the pipeline
+# We have docker in docker service, meaning that a container that has docker installed on it
+services:
+  - name: docker:26.0.0-dind
+
+# We have two stages: build stage which is used to build and test the application
+# and deploy which is used to deploy the application's docker image and make a release
+stages:
+  - build
+  - deploy
+
+# Display information before we start the build.
+# Moreover, install curl which is used to download apps
+# Download release-cli which is used to make a release in the release_job
+# The release flag in the release_job, under the hood, makes use of the release-cli to create
+# executables. That is the reason we need release-cli with executable permissions.
+# Since we use alpine distro, we use apk and not apt
+before_script:
+  - docker info
+  - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  - apk add curl
+  - curl --location --output /usr/local/bin/release-cli "https://gitlab.com/api/v4/projects/gitlab-org%2Frelease-cli/packages/generic/release-cli/latest/release-cli-linux-amd64"
+  - chmod +x /usr/local/bin/release-cli
+
+
+# This section describes what shall be done to build and test the project.
+build-and-test:
+  # We use docker-build to use the runner that can compose docker containers
+  tags:
+    - docker-build
+  stage: build
+  # Build-and-test job is only executed for branch commits
+  only:
+    - branches
+  # Build the docker image using the Dockerfile in the root of the repository
+  script:
+    - docker build -f Dockerfile .
+
+# This section describes what shall be done to deploy artifacts from the project.
+release_job:
+  tags:
+    - docker-build
+  stage: deploy
+  # The job is run on tag commits only
+  only:
+    - tags
+  # Check that the tag commit name follows semantic versioning by checking it with the regex that makes sure 
+  # the tag commit name is in the form of vX.Y.Z where X, Y, and Z are numbers
+  # If the tag commit name follows semantic versioning build the using the provided version as name
+  # If not, write error message and exit with code 1 to indicate failure
+  script:
+    - |
+      # Verify the format of the tag commit name.
+      # `\d+` to denote a digit is not part of basic regular expressions. We
+      # pass the `-E` flag to `grep` to parse an extended regular expression
+      # that supports `\d+`. This makes the solution more flexible and can
+      # support any number and not just 0 through 9 (if [0-9] is used).
+      if echo "$CI_COMMIT_TAG" | grep -E '^v\d+\.\d+\.\d+$' > /dev/null; then
+        echo "Version is valid."
+        docker build -f Dockerfile -t "$CI_REGISTRY_IMAGE":"$CI_COMMIT_TAG" .
+        docker push "$CI_REGISTRY_IMAGE":"$CI_COMMIT_TAG"
+      else
+        echo "Version is invalid."
+        echo "$CI_COMMIT_TAG"
+        exit 1
+      fi
+  # Make a release that has the version as its name and description
+  release:
+    tag_name: '$CI_COMMIT_TAG'
+    description: '$CI_COMMIT_TAG'
