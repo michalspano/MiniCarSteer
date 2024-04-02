@@ -36,6 +36,8 @@ stages:
 # Display information before we start the build.
 # Moreover, install curl which is used to download apps
 # Download release-cli which is used to make a release in the release_job
+# The release flag in the release_job, under the hood, makes use of the release-cli to create
+# executables. That is the reason we need release-cli with executable permissions.
 # Since we use alpine distro, we use apk and not apt
 before_script:
   - docker info
