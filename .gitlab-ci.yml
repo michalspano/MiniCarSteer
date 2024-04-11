@@ -77,13 +77,16 @@ build-and-test:
     - g++ -Wall --coverage -fprofile-arcs -ftest-coverage ../src/TestPrimeChecker.cpp ../src/PrimeChecker.cpp -o testBinary
     # Run the binaries. This is needed to be able to create the coverage info
     - ./mainBinary; ./testBinary
-    # Create the coverage.info file (only from the src folder)
-    - lcov -c -d . --no-external -o coverage.info 
-    # List what the files contains
-    - lcov --list coverage.info
-    # Geerate a folder called res that contains the HTML file for each class and coverage info
-    # We will save this as an artifact later on
-    - genhtml -o res coverage.info
+    # Create the coverage.info file
+    - lcov -c -d . -o coverage.info 
+    # Filter library files and includes from the coverage file
+    - lcov -r coverage.info '/usr/include/*' -o coverage-filtered.info
+    # List what the files contains (in the filtered version)
+    - lcov -l coverage-filtered.info
+    # Geerate a folder called res that contains the HTML file for each class
+    # and coverage info. Apply the filtered coverage file to the generation.
+    # We will save this as an artifact later on.
+    - genhtml -o res coverage-filtered.info
     # Navigate to the root of the project
     - cd ..
     # Create docker image to make sure tha app can be built
