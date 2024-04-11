@@ -45,10 +45,11 @@ before_script:
   # Update and upgrade repository indices
   - apk update
   - apk upgrade
-  # used to download release-cli
+  # Used to download release-cli
   - apk add curl
-  # dependency for lcov
+  # Dependency for lcov
   - apk add perl
+  - apk add bash
   # Add g++ and necessary dependencies for compiling c++ source code
   - apk add build-base
   # Install git to clone lcov repo
