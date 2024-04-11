@@ -43,6 +43,10 @@ before_script:
   - docker info
   - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
   - apk add curl
+  # Add g++ and necessary dependencies for compiling c++ source code
+  - apk add build-base
+  # Add lcov for creating coverage info
+  - apk add lcov
   - curl --location --output /usr/local/bin/release-cli "https://gitlab.com/api/v4/projects/gitlab-org%2Frelease-cli/packages/generic/release-cli/latest/release-cli-linux-amd64"
   - chmod +x /usr/local/bin/release-cli
 
@@ -58,7 +62,31 @@ build-and-test:
     - branches
   # Build the docker image using the Dockerfile in the root of the repository
   script:
+    # Change directory to src that contains the source codes
+    - cd src
+    # Compile the source codes allowing for coverage using the flags mentioned. Allow for warnings too
+    - g++ -Wall --coverage -fprofile-arcs -ftest-coverage helloworld.cpp PrimeChecker.cpp -o mainBinary
+    - g++ -Wall --coverage -fprofile-arcs -ftest-coverage TestPrimeChecker.cpp PrimeChecker.cpp -o testBinary
+    # Run the binaries. This is needed to be able to create the coverage info
+    - ./mainBinary
+    - ./testBinary
+    # Create .gcno and .gcna files for each source code, so that lcov can read the coverage data produced and create the coverage info
+    - gcov helloworld.cpp PrimeChecker.cpp TestPrimeChecker.cpp
+    # Create the coverage.info file
+    - lcov --directory . --capture --output-file coverage.info
+    # List what the files contains
+    - lcov --list coverage.info
+    # Geerate a folder called res that contains the HTML file for each class and coverage info
+    # We will save this as an artifact later on
+    - genhtml -o res coverage.info
+    # Dockerfile is in the root, change directory to the root
+    - cd ..
+    # Create docker image to make sure tha app can be built
     - docker build -f Dockerfile .
+  artifacts:
+    paths:
+      # Save the HTML content containing the coverage info as an artifact
+      - ./src/res
 
 # This section describes what shall be done to deploy artifacts from the project.
 release_job:
