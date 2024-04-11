@@ -50,10 +50,7 @@ before_script:
   # Add g++ and necessary dependencies for compiling c++ source code
   - apk add build-base
   # Dependency for lcov
-  - apk add \
-    --repository http://dl-cdn.alpinelinux.org/alpine/edge/testing \
-    --repository http://dl-cdn.alpinelinux.org/alpine/edge/main \
-    lcov
+  - apk add lcov --repository=http://dl-cdn.alpinelinux.org/alpine/edge/testing
   # - apk add perl
   # - apk add bash
   # Install git to clone lcov repo
