@@ -73,12 +73,8 @@ build-and-test:
     # Make a build folder and navigate to it
     - mkdir build; cd build
     # Compile the source codes allowing for coverage using the flags mentioned. Allow for warnings too
-    - g++ -Wall --coverage -fprofile-arcs -ftest-coverage \
-                ../src/helloworld.cpp ../src/PrimeChecker.cpp \
-                -o mainBinary
-    - g++ -Wall --coverage -fprofile-arcs -ftest-coverage \
-                ../src/TestPrimeChecker.cpp ../src/PrimeChecker.cpp \
-                -o testBinary
+    - g++ -Wall --coverage -fprofile-arcs -ftest-coverage ../src/helloworld.cpp ../src/PrimeChecker.cpp -o mainBinary
+    - g++ -Wall --coverage -fprofile-arcs -ftest-coverage ../src/TestPrimeChecker.cpp ../src/PrimeChecker.cpp -o testBinary
     # Navigate to the root of the project
     - cd ..
     # Run the binaries. This is needed to be able to create the coverage info
