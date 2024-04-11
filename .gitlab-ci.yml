@@ -79,8 +79,8 @@ build-and-test:
     - cd ..
     # Run the binaries. This is needed to be able to create the coverage info
     - ./build/mainBinary; ./build/testBinary
-    # Create the coverage.info file (only from the src folder; ignore `catch.hpp`)
-    - lcov --remove ./src/catch.hpp --directory ./src --capture -o coverage.info
+    # Create the coverage.info file (only from the src folder)
+    - lcov --directory src -c -o coverage.info --no-external
     # List what the files contains
     - lcov --list coverage.info
     # Geerate a folder called res that contains the HTML file for each class and coverage info
