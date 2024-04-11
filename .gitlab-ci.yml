@@ -87,6 +87,7 @@ build-and-test:
     # Run the binaries. This is needed to be able to create the coverage info
     - ./mainBinary
     - ./testBinary
+    - ls
     # Create .gcno and .gcna files for each source code, so that lcov can read the coverage data produced and create the coverage info
     - gcov helloworld.cpp PrimeChecker.cpp TestPrimeChecker.cpp
     # Create the coverage.info file
