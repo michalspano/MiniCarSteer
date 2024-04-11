@@ -48,7 +48,7 @@ before_script:
   # Used to download release-cli
   - apk add curl
   # Dependency for lcov
-  - apk add perl
+  - apk add perl libdatetime-perl
   - apk add bash
   # Add g++ and necessary dependencies for compiling c++ source code
   - apk add build-base
