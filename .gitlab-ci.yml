@@ -47,16 +47,15 @@ before_script:
   - apk upgrade
   # Used to download release-cli
   - apk add curl
+  # Add g++ and necessary dependencies for compiling c++ source code
+  - apk add build-base
   # Dependency for lcov
   - apk add \
-    --no-cache \
     --repository http://dl-cdn.alpinelinux.org/alpine/edge/testing \
     --repository http://dl-cdn.alpinelinux.org/alpine/edge/main \
     lcov
   # - apk add perl
   # - apk add bash
-  # Add g++ and necessary dependencies for compiling c++ source code
-  - apk add build-base
   # Install git to clone lcov repo
   # - apk add git
     # Install the required `perl` dependencies for `clov`
