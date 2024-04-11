@@ -50,22 +50,9 @@ before_script:
   # Add g++ and necessary dependencies for compiling c++ source code
   - apk add build-base
   # Dependency for lcov
-  - apk add lcov --repository=http://dl-cdn.alpinelinux.org/alpine/edge/testing
-  # - apk add perl
-  # - apk add bash
-  # Install git to clone lcov repo
-  # - apk add git
-    # Install the required `perl` dependencies for `clov`
-  # - perl -MCPAN -e 'install(Capture::Tiny)'
-  # - perl -MCPAN -e 'install(DateTime)'
-  # Clone lcov repo
-  # - git clone https://github.com/linux-test-project/lcov.git
-  # Change the cloned dir
-  # - cd lcov
+  - apk add gzip
   # Install lcov
-  # - make install
-  # change to the root again
-  # - cd ..
+  - apk add lcov --repository=http://dl-cdn.alpinelinux.org/alpine/edge/testing
   # install release-cli to make releases
   - curl --location --output /usr/local/bin/release-cli "https://gitlab.com/api/v4/projects/gitlab-org%2Frelease-cli/packages/generic/release-cli/latest/release-cli-linux-amd64"
   # Gie executable permissions to release-cli
