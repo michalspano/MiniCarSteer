@@ -48,9 +48,21 @@ before_script:
   - apk add curl
   # Add g++ and necessary dependencies for compiling c++ source code
   - apk add build-base
-  # Add lcov for creating coverage info
-  - apk add lcov
+  # Install git to clone lcov repo
+  - apk add git
+  # Clone lcov repo
+  - git clone https://github.com/linux-test-project/lcov.git
+  # Change the cloned dir
+  - cd lcov
+  # Install lcov
+  - make install
+  # Check that lcov is installed
+  - lcov --version
+  # change to the root again
+  - cd ..
+  # install release-cli to make releases
   - curl --location --output /usr/local/bin/release-cli "https://gitlab.com/api/v4/projects/gitlab-org%2Frelease-cli/packages/generic/release-cli/latest/release-cli-linux-amd64"
+  # Gie executable permissions to release-cli
   - chmod +x /usr/local/bin/release-cli
 
 
