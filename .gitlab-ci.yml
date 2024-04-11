@@ -48,13 +48,15 @@ before_script:
   # Used to download release-cli
   - apk add curl
   # Dependency for lcov
-  - apk add perl libdatetime-perl
+  - apk add perl
   - apk add bash
   # Add g++ and necessary dependencies for compiling c++ source code
   - apk add build-base
   # Install git to clone lcov repo
   - apk add git
+    # Install the required `perl` dependencies for `clov`
   - perl -MCPAN -e 'install(Capture::Tiny)'
+  - perl -MCPAN -e 'install(DateTime)'
   # Clone lcov repo
   - git clone https://github.com/linux-test-project/lcov.git
   # Change the cloned dir
