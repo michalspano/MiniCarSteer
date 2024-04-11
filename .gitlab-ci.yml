@@ -42,6 +42,9 @@ stages:
 before_script:
   - docker info
   - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  # Update and upgrade repository indices
+  - apk update
+  - apk upgrade
   - apk add curl
   # Add g++ and necessary dependencies for compiling c++ source code
   - apk add build-base
