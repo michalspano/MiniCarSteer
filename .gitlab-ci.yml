@@ -49,6 +49,7 @@ before_script:
   - apk add curl
   # Dependency for lcov
   - apk add perl
+  - perl -MCPAN -e 'install(Capture::Tiny)'
   - apk add bash
   # Add g++ and necessary dependencies for compiling c++ source code
   - apk add build-base
