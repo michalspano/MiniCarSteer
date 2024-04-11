@@ -60,8 +60,6 @@ before_script:
   - cd lcov
   # Install lcov
   - make install
-  # Check that lcov is installed
-  - lcov --version
   # change to the root again
   - cd ..
   # install release-cli to make releases
