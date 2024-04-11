@@ -75,23 +75,23 @@ build-and-test:
     # Compile the source codes allowing for coverage using the flags mentioned. Allow for warnings too
     - g++ -Wall --coverage -fprofile-arcs -ftest-coverage ../src/helloworld.cpp ../src/PrimeChecker.cpp -o mainBinary
     - g++ -Wall --coverage -fprofile-arcs -ftest-coverage ../src/TestPrimeChecker.cpp ../src/PrimeChecker.cpp -o testBinary
-    # Navigate to the root of the project
-    - cd ..
     # Run the binaries. This is needed to be able to create the coverage info
-    - ./build/mainBinary; ./build/testBinary
+    - ./mainBinary; ./testBinary
     # Create the coverage.info file (only from the src folder)
-    - lcov --directory src -c -o coverage.info --no-external
+    - lcov --directory ../src -c -o coverage.info --no-external
     # List what the files contains
     - lcov --list coverage.info
     # Geerate a folder called res that contains the HTML file for each class and coverage info
     # We will save this as an artifact later on
     - genhtml -o res coverage.info
+    # Navigate to the root of the project
+    - cd ..
     # Create docker image to make sure tha app can be built
     - docker build -f Dockerfile .
   artifacts:
     paths:
       # Save the HTML content containing the coverage info as an artifact
-      - ./src/res
+      - ./build/res
 
 # This section describes what shall be done to deploy artifacts from the project.
 release_job:
