@@ -45,13 +45,11 @@ before_script:
   # Update and upgrade repository indices
   - apk update
   - apk upgrade
-  # Used to download release-cli
-  - apk add curl
-  # Add g++ and necessary dependencies for compiling c++ source code
-  - apk add build-base
-  # Dependency for lcov
-  - apk add gzip
-  # Install lcov
+  # Curl is later on used to download release-cli. Build-base contains g++ and necessary packages for compiling c++
+  # source files. Gzip is used by lcov, so it is merely a dependency
+  - apk add curl build-base gzip
+  # Install lcov. lcov is merely at a testing stage and is not in Alpine's released repository
+  # It exists on the testing repo, branch edge
   - apk add lcov --repository=http://dl-cdn.alpinelinux.org/alpine/edge/testing
   # install release-cli to make releases
   - curl --location --output /usr/local/bin/release-cli "https://gitlab.com/api/v4/projects/gitlab-org%2Frelease-cli/packages/generic/release-cli/latest/release-cli-linux-amd64"
