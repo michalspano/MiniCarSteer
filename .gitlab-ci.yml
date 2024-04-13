@@ -44,7 +44,6 @@ before_script:
   - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
   # Update and upgrade repository indices
   - apk update
-  - apk upgrade
   # Curl is later on used to download release-cli. Build-base contains g++ and necessary packages for compiling c++
   # source files. Gzip is used by lcov, so it is merely a dependency
   - apk add curl build-base gzip
