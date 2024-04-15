@@ -26,7 +26,8 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
-int32_t main(int32_t argc, char **argv) {
+int32_t main(int32_t argc, char **argv)
+{
   int32_t retCode{1};
   // Parse the command line parameters as we require the user to specify some
   // mandatory information on startup.
@@ -34,7 +35,8 @@ int32_t main(int32_t argc, char **argv) {
   if ((0 == commandlineArguments.count("cid")) ||
       (0 == commandlineArguments.count("name")) ||
       (0 == commandlineArguments.count("width")) ||
-      (0 == commandlineArguments.count("height"))) {
+      (0 == commandlineArguments.count("height")))
+  {
     std::cerr << argv[0]
               << " attaches to a shared memory area containing an ARGB image."
               << std::endl;
@@ -52,7 +54,9 @@ int32_t main(int32_t argc, char **argv) {
     std::cerr << "Example: " << argv[0]
               << " --cid=253 --name=img --width=640 --height=480 --verbose"
               << std::endl;
-  } else {
+  }
+  else
+  {
     // Extract the values from the command line parameters
     const std::string NAME{commandlineArguments["name"]};
     const uint32_t WIDTH{
@@ -64,7 +68,8 @@ int32_t main(int32_t argc, char **argv) {
     // Attach to the shared memory.
     std::unique_ptr<cluon::SharedMemory> sharedMemory{
         new cluon::SharedMemory{NAME}};
-    if (sharedMemory && sharedMemory->valid()) {
+    if (sharedMemory && sharedMemory->valid())
+    {
       // Print that we are attached to memmory
       std::clog << argv[0] << ": Attached to shared memory '"
                 << sharedMemory->name() << " (" << sharedMemory->size()
@@ -74,70 +79,32 @@ int32_t main(int32_t argc, char **argv) {
       // exchanged. The instance od4 allows you to send and receive messages.
       cluon::OD4Session od4{
           static_cast<uint16_t>(std::stoi(commandlineArguments["cid"]))};
-
       opendlv::proxy::GroundSteeringRequest gsr;
-      opendlv::proxy::AngularVelocityReading avr;
-      opendlv::proxy::MagneticFieldReading mag;
-      opendlv::logic::sensation::Geolocation geo;
-      opendlv::proxy::AccelerationReading acc;
-      std::mutex magMutex;
-      std::mutex accMutex;
-
       std::mutex gsrMutex;
-      std::mutex geoMutex;
+
+      // Define blue zone
+      const int MIN_X_BLUE = 0;
+      const int MIN_Y_BLUE = 380;
+      const int MAX_X_BLUE = 320;
+      const int MAX_Y_BLUE = 260;
+
+      // Define yellow zone
+      const int MIN_X_YELLOW = 320;
+      const int MIN_Y_YELLOW = 380;
+      const int MAX_X_YELLOW = 640;
+      const int MAX_Y_YELLOW = 260;
 
       auto onGroundSteeringRequest = [&gsr,
-                                      &gsrMutex](cluon::data::Envelope &&env) {
+                                      &gsrMutex](cluon::data::Envelope &&env)
+      {
         std::lock_guard<std::mutex> lck(gsrMutex); // Acquite lock for data
         gsr = cluon::extractMessage<opendlv::proxy::GroundSteeringRequest>(
             std::move(env));
       };
 
-      std::mutex avrMutex;
-      auto onAngularVelocityReading = [&avr,
-                                       &avrMutex](cluon::data::Envelope &&env) {
-        std::lock_guard<std::mutex> lck(avrMutex);
-        cluon::data::TimeStamp time = env.sampleTimeStamp();
-        int64_t current_time_microseconds =
-            cluon::time::toMicroseconds(time); // Convert time to microseconds
-        std::string time_as_string = std::to_string(current_time_microseconds);
-        avr = cluon::extractMessage<opendlv::proxy::AngularVelocityReading>(
-            std::move(env));
-      };
-      auto onMagneticFieldReading = [&mag,
-                                     &magMutex](cluon::data::Envelope &&env) {
-        std::lock_guard<std::mutex> lck(magMutex);
-        mag = cluon::extractMessage<opendlv::proxy::MagneticFieldReading>(
-            std::move(env));
-      };
-      auto onAccelerationReading = [&acc,
-                                    &accMutex](cluon::data::Envelope &&env) {
-        std::lock_guard<std::mutex> lck(accMutex);
-        acc = cluon::extractMessage<opendlv::proxy::AccelerationReading>(
-            std::move(env));
-      };
-      auto onGeolocationReading = [&geo,
-                                   &geoMutex](cluon::data::Envelope &&env) {
-        std::lock_guard<std::mutex> lck(geoMutex);
-        geo = cluon::extractMessage<opendlv::logic::sensation::Geolocation>(
-            std::move(env));
-      };
-
-      od4.dataTrigger(opendlv::logic::sensation::Geolocation::ID(),
-                      onGeolocationReading);
-      od4.dataTrigger(opendlv::proxy::GroundSteeringRequest::ID(),
-                      onGroundSteeringRequest);
-      od4.dataTrigger(opendlv::proxy::AngularVelocityReading::ID(),
-                      onAngularVelocityReading);
-      od4.dataTrigger(opendlv::proxy::MagneticFieldReading::ID(),
-                      onMagneticFieldReading);
-      od4.dataTrigger(opendlv::proxy::MagneticFieldReading::ID(),
-                      onMagneticFieldReading);
-      od4.dataTrigger(opendlv::proxy::AccelerationReading::ID(),
-                      onAccelerationReading);
-
       // Endless loop; end the program by pressing Ctrl-C.
-      while (od4.isRunning()) {
+      while (od4.isRunning())
+      {
         // OpenCV data structure to hold an image.
         cv::Mat img;
 
@@ -150,72 +117,52 @@ int32_t main(int32_t argc, char **argv) {
           // Copy the pixels from the shared memory into our own data structure.
           cv::Mat wrapped(HEIGHT, WIDTH, CV_8UC4, sharedMemory->data());
           img = wrapped.clone();
+
+          cv::rectangle(img, cv::Point(MIN_X_BLUE, MIN_Y_BLUE), cv::Point(MAX_X_BLUE, MAX_Y_BLUE),
+                        cv::Scalar(255, 0, 0));
+
+          cv::rectangle(img, cv::Point(MIN_X_YELLOW, MIN_Y_YELLOW), cv::Point(MAX_X_YELLOW, MAX_Y_YELLOW),
+                        cv::Scalar(0, 255, 255));
+
+          // Blue zone
+          for (int i = MIN_X_BLUE; i < MAX_X_BLUE; i++)
+          {
+            for (int j = MAX_Y_BLUE; j < MIN_Y_BLUE; j++)
+            {
+              cv::Vec3b pixel = img.at<cv::Vec3b>(j, i);
+              pixel[0]=0;
+              pixel[1]=0;
+              pixel[2]=255;
+              img.at<cv::Vec3b>(cv::Point(j,i)) = pixel;
+            }
+          }
+
+          // Yellow zone
+          for (int i = MIN_X_YELLOW; i < MAX_X_YELLOW; i++)
+          {
+            for (int j = MIN_Y_YELLOW; j < MAX_Y_YELLOW; j++)
+            {
+              cv::Vec3b pixel = img.at<cv::Vec3b>(j, i);
+              pixel[0]=0;
+              pixel[1]=255;
+              pixel[2]=0;
+              img.at<cv::Vec3b>(cv::Point(j,i)) = pixel;
+            }
+          }
         }
 
-        /**
-         * getTimeStamp returns two properties, first and second.
-         * if first is true then second contains timestamp value
-         * if first is false then second contains 0
-         */
-        cluon::data::TimeStamp time_point = sharedMemory->getTimeStamp().second;
-        // Convert time point to microseconds
-        int64_t time_point_microseconds =
-            cluon::time::toMicroseconds(time_point);
 
-        // Get current time
-        cluon::data::TimeStamp now{cluon::time::now()}; // Get current time
-        int64_t current_time_microseconds =
-            cluon::time::toMicroseconds(now); // Convert time to microseconds
-        auto current_time_in_secs =
-            current_time_microseconds / 1000000; // Convert to secs
 
-        // Convert the time from seconds to a tm struct
-        std::tm now_in_utc; // phind-codellama:34b-v2-q2_K
-        gmtime_r(&current_time_in_secs,
-                 &now_in_utc); // phind-codellama:34b-v2-q2_K
-
-        // Create a buffer and use `strftime` to format the time into this
-        // buffer
-        char buf[1024]; // phind-codellama:34b-v2-q2_K
-        std::strftime(buf, sizeof(buf), "%Y-%m-%dT%XZ",
-                      &now_in_utc); // phind-codellama:34b-v2-q2_K
-
-        // Use the buffer to construct a std::string
-        std::string timeStr(buf); // phind-codellama:34b-v2-q2_K
-        std::string text = "Now: " + timeStr +
-                           "; ts: " + std::to_string(time_point_microseconds) +
-                           "; Safstrom, Alexander";
+        // Blue zone: W:(0px-320px) H: (100px-220px)
+        // Yellow zone: W:(320px-640px) H: (100px-220px)
+        // actual dim 640x480
 
         sharedMemory->unlock();
 
-        cv::rectangle(img, cv::Point(50, 50), cv::Point(100, 100),
-                      cv::Scalar(0, 0, 255));
-        cv::putText(img, text, cv::Point(20, 50), 5, 0.5,
-                    cv::Scalar(255, 255, 255));
-
         // If you want to access the latest received ground steering, don't
         // forget to lock the mutex:
+
         {
-          std::cout << "v" << std::endl;
-          ;
-          std::lock_guard<std::mutex> lck(avrMutex);
-          std::string angular_z_string =
-              std::to_string(avr.angularVelocityZ()) +
-              "\n"; // phind-codellama:34b-v2-q2_K
-          std::ofstream ofs("/tmp/velocity.txt",
-                            std::ios_base::app); // phind-codellama:34b-v2-q2_K
-          ofs << angular_z_string;               // phind-codellama:34b-v2-q2_K
-          ofs.close();
-
-          /*
-
-          std::cout << "main: groundSteering = " << gsr.groundSteering() <<
-          std::endl;*/
-        }
-        {
-          std::cout << "s" << std::endl;
-          ;
-
           std::lock_guard<std::mutex> lck(gsrMutex);
           std::string steering_string = std::to_string(gsr.groundSteering()) +
                                         "\n"; // phind-codellama:34b-v2-q2_K
@@ -224,50 +171,10 @@ int32_t main(int32_t argc, char **argv) {
           ofs << steering_string;                // phind-codellama:34b-v2-q2_K
           ofs.close();
         }
-        {
-          std::cout << "m" << std::endl;
-          ;
-
-          std::lock_guard<std::mutex> lck(magMutex);
-          std::string magnetic_string =
-              std::to_string(mag.magneticFieldX()) + ";" +
-              std::to_string(mag.magneticFieldY()) + ";" +
-              std::to_string(mag.magneticFieldZ()) +
-              "\n"; // phind-codellama:34b-v2-q2_K
-          std::ofstream ofs("/tmp/mag.txt",
-                            std::ios_base::app); // phind-codellama:34b-v2-q2_K
-          ofs << magnetic_string;                // phind-codellama:34b-v2-q2_K
-          ofs.close();
-        }
-        {
-          std::cout << "g" << std::endl;
-          ;
-
-          std::lock_guard<std::mutex> lck(geoMutex);
-          std::string geo_string = std::to_string(geo.heading()) +
-                                   "\n"; // phind-codellama:34b-v2-q2_K
-          std::ofstream ofs("/tmp/geo.txt",
-                            std::ios_base::app); // phind-codellama:34b-v2-q2_K
-          ofs << geo_string;                     // phind-codellama:34b-v2-q2_K
-          ofs.close();
-        }
-        {
-          std::cout << "a" << std::endl;
-          ;
-
-          std::lock_guard<std::mutex> lck(accMutex);
-          std::string acc_string = std::to_string(acc.accelerationX()) + ";" +
-                                   std::to_string(acc.accelerationY()) + ";" +
-                                   std::to_string(acc.accelerationZ()) +
-                                   "\n"; // phind-codellama:34b-v2-q2_K
-          std::ofstream ofs("/tmp/acc.txt",
-                            std::ios_base::app); // phind-codellama:34b-v2-q2_K
-          ofs << acc_string;                     // phind-codellama:34b-v2-q2_K
-          ofs.close();
-        }
 
         // Display image on your screen.
-        if (VERBOSE) {
+        if (VERBOSE)
+        {
           cv::imshow(sharedMemory->name().c_str(), img);
           cv::waitKey(1);
         }
