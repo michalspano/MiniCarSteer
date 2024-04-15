@@ -129,11 +129,10 @@ int32_t main(int32_t argc, char **argv)
           {
             for (int j = MIN_Y_BLUE; j < MAX_Y_BLUE; j++)
             {
-              cv::Vec3b pixel = img.at<cv::Vec3b>(j, i);
-              pixel[0]=0;
-              pixel[1]=0;
-              pixel[2]=255;
-              img.at<cv::Vec3b>(cv::Point(j,i)) = pixel;
+              img.at<cv::Vec4b>(j, i)[0]=0;
+              img.at<cv::Vec4b>(j, i)[1]=255;
+              img.at<cv::Vec4b>(j, i)[2]=255;
+              img.at<cv::Vec4b>(j, i)[3]=255;
             }
           }
 
@@ -142,13 +141,14 @@ int32_t main(int32_t argc, char **argv)
           {
             for (int j = MIN_Y_YELLOW; j < MAX_Y_YELLOW; j++)
             {
-              cv::Vec3b pixel = img.at<cv::Vec3b>(j, i);
-              pixel[0]=0;
-              pixel[1]=255;
-              pixel[2]=0;
-              img.at<cv::Vec3b>(cv::Point(j,i)) = pixel;
+              img.at<cv::Vec4b>(j, i)[0]=0;
+              img.at<cv::Vec4b>(j, i)[1]=255;
+              img.at<cv::Vec4b>(j, i)[2]=0;
+              img.at<cv::Vec4b>(j, i)[3]=255;
             }
           }
+                 // Yellow zone
+         
         }
 
 
