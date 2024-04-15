@@ -84,15 +84,15 @@ int32_t main(int32_t argc, char **argv)
 
       // Define blue zone
       const int MIN_X_BLUE = 0;
-      const int MIN_Y_BLUE = 380;
+      const int MAX_Y_BLUE = 380;
       const int MAX_X_BLUE = 320;
-      const int MAX_Y_BLUE = 260;
+      const int MIN_Y_BLUE = 260;
 
       // Define yellow zone
       const int MIN_X_YELLOW = 320;
-      const int MIN_Y_YELLOW = 380;
+      const int MAX_Y_YELLOW = 380;
       const int MAX_X_YELLOW = 640;
-      const int MAX_Y_YELLOW = 260;
+      const int MIN_Y_YELLOW = 260;
 
       auto onGroundSteeringRequest = [&gsr,
                                       &gsrMutex](cluon::data::Envelope &&env)
@@ -127,7 +127,7 @@ int32_t main(int32_t argc, char **argv)
           // Blue zone
           for (int i = MIN_X_BLUE; i < MAX_X_BLUE; i++)
           {
-            for (int j = MAX_Y_BLUE; j < MIN_Y_BLUE; j++)
+            for (int j = MIN_Y_BLUE; j < MAX_Y_BLUE; j++)
             {
               cv::Vec3b pixel = img.at<cv::Vec3b>(j, i);
               pixel[0]=0;
