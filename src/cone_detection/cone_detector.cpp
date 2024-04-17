@@ -1,7 +1,7 @@
 #include "cone_detector.hpp"
 #include <iostream>
-int checkZone(cv::Mat HSV, int minX, int maxX, int minY, int maxY, int color) {
-  cv::Mat filtered;
+cv::Mat checkZone(cv::Mat HSV, int minX, int maxX, int minY, int maxY, int color, int imageid) {
+  cv::Mat filtered(480, 640, CV_8UC3);
   int hueMin, hueMax, satMin, satMax, valMin, valMax;
   switch (color) {
   case 0:
@@ -29,15 +29,17 @@ int checkZone(cv::Mat HSV, int minX, int maxX, int minY, int maxY, int color) {
   // Loop through zone
   for (int i = minX; i < maxX; i++) {
     for (int j = minY; j < maxY; j++) {
-      if (filtered.at<cv::Vec4b>(j, i)[0] == 255 &&
-          filtered.at<cv::Vec4b>(j, i)[1] == 255 &&
-          filtered.at<cv::Vec4b>(j, i)[2] == 255 &&
-          filtered.at<cv::Vec4b>(j, i)[3] == 255) {
+      int color1 = filtered.at<cv::Vec3b>(j, i)[0];
+      int color2 = filtered.at<cv::Vec3b>(j, i)[1];
+      int color3 = filtered.at<cv::Vec3b>(j, i)[2];
+      if (filtered.at<cv::Vec3b>(j, i)[0] == 0 &&
+          filtered.at<cv::Vec3b>(j, i)[1] == 0 &&
+          filtered.at<cv::Vec3b>(j, i)[2] == 255) {
         occurrences++;
       }
     }
 
-    std::cout << occurrences << std::endl;
-    return occurrences;
+    std::cout << occurrences << "/" << imageid << std::endl;
+    return filtered;
   }
 }

@@ -31,6 +31,6 @@
 #define YELLOW_VALUE_MIN 0
 #define YELLOW_VALUE_MAX 255
 
-int checkZone(cv::Mat HSV, int minX,int maxX,int minY,int maxY,int color);
+cv::Mat checkZone(cv::Mat HSV, int minX,int maxX,int minY,int maxY,int color, int imageid);
 
 #endif
