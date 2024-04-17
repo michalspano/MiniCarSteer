@@ -1,8 +1,21 @@
+/*******************************************************************************
+ * cone_detection
+ * File: {@code cone_detector.cpp} [source file]
+ * Authors: Arumeel Kaisa, Khodaparast Omid, Michal Spano, Säfström Alexander
+ *
+ * DIT639 Cyber Physical Systems and Sytems of Systems
+ ******************************************************************************/
+
+// Include the header API
 #include "cone_detector.hpp"
-#include <iostream>
+
+// Function to check a zone for a particular color
 cv::Mat checkZone(cv::Mat HSV, int minX, int maxX, int minY, int maxY,
                   int color, int imageid) {
-  cv::Mat filtered(480, 640, CV_8UC3);
+
+  cv::Mat filtered(480, 640, CV_8UC3); // FIXME: extract magic numbers
+
+  // FIXME: make this more modular.
   int hueMin, hueMax, satMin, satMax, valMin, valMax;
   switch (color) {
   case 0:
@@ -24,17 +37,21 @@ cv::Mat checkZone(cv::Mat HSV, int minX, int maxX, int minY, int maxY,
   default:
     break;
   }
+
+  // Apply the HSV filter based on a chosen color
   cv::inRange(HSV, cv::Scalar(hueMin, satMin, valMin),
               cv::Scalar(hueMax, satMax, valMax), filtered);
+
   int occurrences = 0;
-  
   for (int i = minX; i < maxX; i++) {
     for (int j = minY; j < maxY; j++) {
-      if (filtered.at<uchar>(j, i) == 255) {
+      if (filtered.at<uchar>(j, i) == 255) { // detect a white pixel
         occurrences++;
       }
     }
   }
+
+  // Log the # of occurrences per frame.
   std::cout << occurrences << "/" << imageid << std::endl;
   return filtered;
 }
