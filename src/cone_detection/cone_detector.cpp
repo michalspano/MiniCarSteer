@@ -10,8 +10,7 @@
 #include "cone_detector.hpp"
 
 // Function to check a zone for a particular color
-cv::Mat checkZone(cv::Mat HSV, int minX, int maxX, int minY, int maxY,
-                  int color, int imageid) {
+int checkZone(cv::Mat HSV, int minX, int maxX, int minY, int maxY, int color) {
 
   cv::Mat filtered(480, 640, CV_8UC3); // FIXME: extract magic numbers
 
@@ -51,7 +50,5 @@ cv::Mat checkZone(cv::Mat HSV, int minX, int maxX, int minY, int maxY,
     }
   }
 
-  // Log the # of occurrences per frame.
-  std::cout << occurrences << "/" << imageid << std::endl;
-  return filtered;
+  return occurrences;
 }

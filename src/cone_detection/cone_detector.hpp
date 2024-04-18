@@ -1,6 +1,6 @@
 /*******************************************************************************
  * cone_detection
- * File: {@code cone_detector.h} [header file] 
+ * File: {@code cone_detector.h} [header file]
  * Authors: Arumeel Kaisa, Khodaparast Omid, Michal Spano, Säfström Alexander
  *
  * DIT639 Cyber Physical Systems and Sytems of Systems
@@ -14,18 +14,6 @@
 #include <iostream>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
-
-// Blue zone (active zone)
-#define MIN_X_BLUE 0
-#define MAX_Y_BLUE 380
-#define MAX_X_BLUE 320
-#define MIN_Y_BLUE 260
-
-// Yellow zone
-#define MIN_X_YELLOW 320
-#define MAX_Y_YELLOW 380
-#define MAX_X_YELLOW 640
-#define MIN_Y_YELLOW 260
 
 // Define blue HSV filter [id:0]
 #define BLUE_HUE_MIN 115
@@ -44,7 +32,6 @@
 #define YELLOW_VALUE_MAX 255
 
 // Function prototypes
-cv::Mat checkZone(cv::Mat HSV, int minX, int maxX, int minY, int maxY,
-                  int color, int imageid);
+int checkZone(cv::Mat HSV, int minX, int maxX, int minY, int maxY, int color);
 
 #endif

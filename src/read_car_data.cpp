@@ -33,9 +33,28 @@
 // Include the GUI and image processing header files from OpenCV
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
+#include <vector>
 
 // Custom imports from pre-made modules
 #include "cone_detection/cone_detector.hpp"
+#include "steering/steering.hpp"
+#include "zones.hpp"
+#include <cmath>
+void debug(cv::Mat img, int x, int y, double distance,int color) {
+  int textX = (x + BLUE_ZONE_INCREMENT_X / 2);
+  int textY = (y + BLUE_ZONE_INCREMENT_Y / 2);
+  cv::Scalar colorCode;
+  if (!color){
+    colorCode=cv::Scalar(255,0,0);
+  } else {
+    colorCode=cv::Scalar(0,255,255);
+  }
+  cv::putText(img, std::to_string(distance), cv::Point(textX, textY),
+              cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 255), 2);
+  cv::rectangle(img, cv::Point(x, y),
+                cv::Point(x + BLUE_ZONE_INCREMENT_X, y + BLUE_ZONE_INCREMENT_Y),
+                colorCode);
+}
 
 // The main entry point of the program
 int32_t main(int32_t argc, char **argv) {
@@ -100,8 +119,6 @@ int32_t main(int32_t argc, char **argv) {
             std::move(env));
       };
 
-      int imageId = 0;
-
       // Endless loop; end the program by pressing Ctrl-C.
       while (od4.isRunning()) {
         // OpenCV data structure to hold an image.
@@ -113,8 +130,6 @@ int32_t main(int32_t argc, char **argv) {
         // Lock the shared memory.
         sharedMemory->lock();
         {
-          // FIXME: may be redundant
-          imageId++; // increase the frame rate value
 
           // Copy the pixels from the shared memory into our own data structure.
           cv::Mat wrapped(HEIGHT, WIDTH, CV_8UC4, sharedMemory->data());
@@ -127,15 +142,64 @@ int32_t main(int32_t argc, char **argv) {
           // Transform the image to HSV
           cv::Mat hsv(HEIGHT, WIDTH, CV_8UC3);
           cv::cvtColor(img, hsv, cv::COLOR_BGR2HSV);
+          int yellowPixels, bluePixels;
+          int zone = 0;
+          std::vector<datapoint> datapoints;
 
-          // Check the 'blue zone'
-          img = checkZone(hsv, MIN_X_BLUE, MAX_X_BLUE, MIN_Y_BLUE, MAX_Y_BLUE,
-                          0, imageId);
+          for (int y = MIN_Y_BLUE; y <= MAX_Y_BLUE - BLUE_ZONE_INCREMENT_Y;
+               y += BLUE_ZONE_INCREMENT_Y) {
+            for (int x = MIN_X_BLUE; x <= MAX_X_BLUE - BLUE_ZONE_INCREMENT_X;
+                 x += BLUE_ZONE_INCREMENT_X) {
+              // Check the 'blue zone'
+              yellowPixels = checkZone(hsv, x, x + BLUE_ZONE_INCREMENT_X, y,
+                                       y + BLUE_ZONE_INCREMENT_Y, 1);
 
-          // Draw a rectanle around the 'blue zone'
-          cv::rectangle(img, cv::Point(MIN_X_BLUE, MIN_Y_BLUE),
-                        cv::Point(MAX_X_BLUE, MAX_Y_BLUE),
-                        cv::Scalar(255, 0, 0));
+              double distance = calculateDistance(x + BLUE_ZONE_INCREMENT_X / 2,
+                                                  y + BLUE_ZONE_INCREMENT_Y / 2,
+                                                  BLUE_ZONE_INCREMENT_X,
+                                                  BLUE_ZONE_INCREMENT_Y) *
+                                100;
+              distance = ((int)distance) / 100.0;
+              struct datapoint point = {distance, yellowPixels};
+              datapoints.push_back(point);
+              debug(img, x, y, distance,0);
+              zone++;
+            }
+          }
+            double blueSteeringOpinion = calculateSteering(datapoints);
+            datapoints.clear();
+
+            std::cout << "blue steering angle opinion: " << blueSteeringOpinion
+                      << std::endl;
+            zone = 0;
+
+            for (int y = MIN_Y_YELLOW;
+                 y <= MAX_Y_YELLOW - YELLOW_ZONE_INCREMENT_Y;
+                 y += YELLOW_ZONE_INCREMENT_Y) {
+              for (int x = MIN_X_YELLOW;
+                   x <= MAX_X_YELLOW - YELLOW_ZONE_INCREMENT_X;
+                   x += YELLOW_ZONE_INCREMENT_X) {
+                zone++;
+                // Check the 'yellow zone'
+                bluePixels = checkZone(hsv, x, x + YELLOW_ZONE_INCREMENT_X, y,
+                                       y + YELLOW_ZONE_INCREMENT_Y, 0);
+
+                double distance =
+                    calculateDistance(x + YELLOW_ZONE_INCREMENT_X / 2,
+                                      y + YELLOW_ZONE_INCREMENT_Y / 2,
+                                      YELLOW_ZONE_INCREMENT_X,
+                                      YELLOW_ZONE_INCREMENT_Y) *
+                    100;
+                distance = ((int)distance) / 100.0;
+                struct datapoint point = {distance, bluePixels};
+                datapoints.push_back(point);
+                debug(img, x, y, distance,1);
+              }
+            }
+          
+          double yellowSteeringOpinion = calculateSteering(datapoints);
+          std::cout << "yellow steering angle opinion: "
+                    << yellowSteeringOpinion << std::endl;
         }
 
         // Display image on your screen.
