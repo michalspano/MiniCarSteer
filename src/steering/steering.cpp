@@ -15,7 +15,7 @@ double calculateSteering(std::vector<int> pixels, bool isLeft) {
     for (int i = 0; i < pixels.size(); i++) {
       if (pixels[i] > MIN_PIXELS_THRESHOLD) {
         std::cout << i <<  std::endl;
-        multiplier = (i + 1);
+        multiplier = i + 1.0;
         break;
       }
     }
@@ -23,7 +23,7 @@ double calculateSteering(std::vector<int> pixels, bool isLeft) {
     // Right
     for (int i = pixels.size() - 1; i > 0; i--) {
       if (pixels[i] > MIN_PIXELS_THRESHOLD) {
-        multiplier = (pixels.size() - i + 1)*-1;
+        multiplier = (pixels.size() - i + 1.0) * -1.0;
         break;
       }
     }
