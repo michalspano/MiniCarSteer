@@ -13,6 +13,9 @@
 // Imports
 #include <iostream>
 #include <vector>
+#include "../zones.hpp"
+#include "../cone_detection/cone_detector.hpp"
+
 #define ORIGIN_X 320
 #define ORIGIN_Y 380
 #define MIN_PIXELS_THRESHOLD 10
@@ -23,6 +26,8 @@ struct datapoint {
 };
 
 // Function prototypes
-double calculateSteering(std::vector<datapoint> distances);
-double calculateDistance(int x, int y, int incrementX, int incrementY);
+bool isValidSteeringAngle(double actual, double predicted);
+double calculateSteering(std::vector<int> pixels, bool isLeft);
+std::vector<int> getDataPointsPerFrame(int colorId, cv::Mat hsv);
+
 #endif

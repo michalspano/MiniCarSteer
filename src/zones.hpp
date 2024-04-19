@@ -15,6 +15,8 @@
 #define MAX_Y_BLUE 380
 #define MAX_X_BLUE 320
 #define MIN_Y_BLUE 260
+
+// FIXME: will be removed.
 #define BLUE_ZONE_INCREMENT_X 80
 #define BLUE_ZONE_INCREMENT_Y 120
 
@@ -23,8 +25,13 @@
 #define MAX_Y_YELLOW 380
 #define MAX_X_YELLOW 640
 #define MIN_Y_YELLOW 260
+
+// FIXME: will be removed.
 #define YELLOW_ZONE_INCREMENT_X 80
 #define YELLOW_ZONE_INCREMENT_Y 120
+
+#define INCREMENT_X 80
+#define INCREMENT_Y 120
 
 #define N_ZONES 8
 #endif
