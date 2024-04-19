@@ -12,7 +12,7 @@ double calculateSteering(std::vector<int> pixels, bool isLeft) {
   double multiplier = 0;
   if (isLeft) {
     // Left
-    for (size_t i = pixels.size() - 2; i > 0; i--) {
+    for (size_t i = pixels.size() - 1; i > 0; i--) {
       if (pixels[i] > MIN_PIXELS_THRESHOLD) {
         multiplier = (pixels.size() - i) * -1;
         break;
@@ -20,7 +20,7 @@ double calculateSteering(std::vector<int> pixels, bool isLeft) {
     }
   } else {
     // Right
-    for (size_t i = 1; i < pixels.size(); i++) {
+    for (size_t i = 0; i < pixels.size(); i++) {
       if (pixels[i] > MIN_PIXELS_THRESHOLD) {
          multiplier = i + 1;
          break;
@@ -63,8 +63,8 @@ std::vector<int> getDataPointsPerFrame(int colorId, cv::Mat hsv) {
   }
 
   for (int y = minY; y <= maxY - INCREMENT_Y; y += INCREMENT_Y) {
-    for (int x = minX; x <= maxX- INCREMENT_X; x += INCREMENT_X) {
-      pixelCount = checkZone(hsv, x, x + INCREMENT_X, y, y + INCREMENT_Y, 1);
+    for (int x = minX; x <= maxX - INCREMENT_X; x += INCREMENT_X) {
+      pixelCount = checkZone(hsv, x, x + INCREMENT_X, y, y + INCREMENT_Y, colorId);
       pixels.push_back(pixelCount);
       // debug(img, x, y, distance, 0);
     }
