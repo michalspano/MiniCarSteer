@@ -118,6 +118,8 @@ int32_t main(int32_t argc, char **argv) {
         gsr = cluon::extractMessage<opendlv::proxy::GroundSteeringRequest>(
             std::move(env));
       };
+      od4.dataTrigger(opendlv::proxy::GroundSteeringRequest::ID(),
+                      onGroundSteeringRequest);
 
       int correctCount = 0, incorrectCount = 0;
 
@@ -155,8 +157,9 @@ int32_t main(int32_t argc, char **argv) {
           datapoints = getDataPointsPerFrame(1, hsv);
           double rightSideSteering = calculateSteering(datapoints, false);
 
-          // std::cout << "blue steering angle opinion: " << blueSteeringOpinion << std::endl;
-          // std::cout << "yellow steering angle opinion: " << yellowSteeringOpinion << std::endl;
+          // std::cout << "blue steering angle opinion: " << blueSteeringOpinion
+          // << std::endl; std::cout << "yellow steering angle opinion: " <<
+          // yellowSteeringOpinion << std::endl;
 
           std::lock_guard<std::mutex> lck(gsrMutex);
           double expectedSteering = gsr.groundSteering();
@@ -167,7 +170,7 @@ int32_t main(int32_t argc, char **argv) {
           } else {
             actualSteering = leftSideSteering;
           }
-
+          std::cout << "actual steering: " << expectedSteering << std::endl;
           // actual, predicted
           if (isValidSteeringAngle(actualSteering, expectedSteering)) {
             correctCount++;
