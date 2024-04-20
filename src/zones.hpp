@@ -16,22 +16,19 @@
 #define MAX_X_BLUE 320
 #define MIN_Y_BLUE 260
 
-// FIXME: will be removed.
-#define BLUE_ZONE_INCREMENT_X 40
-#define BLUE_ZONE_INCREMENT_Y 120
-
-// Yellow zone
+// Yellow zone (active zone)
 #define MIN_X_YELLOW 320
 #define MAX_Y_YELLOW 380
 #define MAX_X_YELLOW 640
 #define MIN_Y_YELLOW 260
 
-// FIXME: will be removed.
-#define YELLOW_ZONE_INCREMENT_X 40
-#define YELLOW_ZONE_INCREMENT_Y 120
-
+// The increments for x, y are identical for both zones
 #define INCREMENT_X 40
 #define INCREMENT_Y 120
 
-#define N_ZONES 16
-#endif
+// The number of zones: dynamically computed based on the previous definitions
+#define N_ZONES \
+  ((MAX_X_BLUE - MIN_X_BLUE) / INCREMENT_X) * ((MAX_Y_BLUE - MIN_Y_BLUE) / INCREMENT_Y) + \
+  ((MAX_X_YELLOW - MIN_X_YELLOW) / INCREMENT_X) * ((MAX_Y_YELLOW - MIN_Y_YELLOW) / INCREMENT_Y)
+
+#endif // zones.hpp
