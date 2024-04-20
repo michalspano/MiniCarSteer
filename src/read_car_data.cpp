@@ -30,31 +30,16 @@
 // usually exchanged for automotive or robotic applications
 #include "opendlv-standard-message-set.hpp"
 
-// Include the GUI and image processing header files from OpenCV
+// Library improts
+#include <vector>
+#include <iostream>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
-#include <vector>
 
 // Custom imports from pre-made modules
+#include "utils/utils.hpp"
 #include "cone_detection/cone_detector.hpp"
 #include "steering/steering.hpp"
-#include "zones.hpp"
-#include <cmath>
-void debug(cv::Mat img, int x, int y, double distance, int color) {
-  int textX = (x + BLUE_ZONE_INCREMENT_X / 2);
-  int textY = (y + BLUE_ZONE_INCREMENT_Y / 2);
-  cv::Scalar colorCode;
-  if (!color) {
-    colorCode = cv::Scalar(255, 0, 0);
-  } else {
-    colorCode = cv::Scalar(0, 255, 255);
-  }
-  cv::putText(img, std::to_string(distance), cv::Point(textX, textY),
-              cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 255), 2);
-  cv::rectangle(img, cv::Point(x, y),
-                cv::Point(x + BLUE_ZONE_INCREMENT_X, y + BLUE_ZONE_INCREMENT_Y),
-                colorCode);
-}
 
 // The main entry point of the program
 int32_t main(int32_t argc, char **argv) {
@@ -128,6 +113,10 @@ int32_t main(int32_t argc, char **argv) {
         // OpenCV data structure to hold an image.
         cv::Mat img;
 
+        // Vector of datapoints
+        // TODO: document this better
+        std::vector<int> datapoints;
+
         // Wait for a notification of a new frame.
         sharedMemory->wait();
 
@@ -147,15 +136,17 @@ int32_t main(int32_t argc, char **argv) {
           cv::Mat hsv(HEIGHT, WIDTH, CV_8UC3);
           cv::cvtColor(img, hsv, cv::COLOR_BGR2HSV);
 
-          std::vector<int> datapoints;
-
           datapoints = getDataPointsPerFrame(0, hsv);
-
-          double leftSideSteering = calculateSteering(datapoints, true);
-          datapoints.clear();
+          double leftSideSteering = calculateSteering(datapoints, true); datapoints.clear();
 
           datapoints = getDataPointsPerFrame(1, hsv);
           double rightSideSteering = calculateSteering(datapoints, false);
+
+          /* Display the zones (debugging purposes)*/
+#if DEBUG_ON
+          displayZones(0, img);
+          displayZones(1, img);
+#endif
 
           // std::cout << "blue steering angle opinion: " << blueSteeringOpinion
           // << std::endl; std::cout << "yellow steering angle opinion: " <<
@@ -170,8 +161,8 @@ int32_t main(int32_t argc, char **argv) {
           } else {
             actualSteering = leftSideSteering;
           }
+
           std::cout << "actual steering: " << expectedSteering << std::endl;
-          // actual, predicted
           if (isValidSteeringAngle(actualSteering, expectedSteering)) {
             correctCount++;
           } else {
@@ -181,8 +172,7 @@ int32_t main(int32_t argc, char **argv) {
           std::cout << "Correct count: " << correctCount << std::endl;
           std::cout << "Incorrect count: " << incorrectCount << std::endl;
 
-          std::string steering_string =
-              std::to_string(gsr.groundSteering()) + "\n";
+          std::string steering_string = std::to_string(gsr.groundSteering()) + "\n";
           std::ofstream ofs("/tmp/steering.txt", std::ios_base::app);
           ofs << steering_string;
           ofs.close();
