@@ -1,26 +1,27 @@
-#include "steering.hpp"
-#include <algorithm>
-#include <cmath>
+/*******************************************************************************
+ * steering
+ * File: {@code steering.cpp} [source file]
+ * Authors: Arumeel Kaisa, Khodaparast Omid, Michal Spano, Säfström Alexander
+ *
+ * DIT639 Cyber Physical Systems and Sytems of Systems
+ ******************************************************************************/
 
-/*
- * steering angle:
- * x / (z/2) * 0.3 = steering_angle
- * x: column
- * z: total number of columns
- */
+#include "steering.hpp"
+
+// FIXME: this function is WIP and does not work fully for now.
 double calculateSteering(std::vector<int> pixels, bool isLeft) {
   double multiplier = 0;
   if (isLeft) {
-    // Left
+    // Left-hand side region
     for (int i = 0; i < pixels.size(); i++) {
       if (pixels[i] > MIN_PIXELS_THRESHOLD) {
-        std::cout << i <<  std::endl;
+        std::cout << i << std::endl;
         multiplier = i + 1.0;
         break;
       }
     }
   } else {
-    // Right
+    // Right-hand side region
     for (int i = pixels.size() - 1; i > 0; i--) {
       if (pixels[i] > MIN_PIXELS_THRESHOLD) {
         multiplier = (pixels.size() - i + 1.0) * -1.0;
@@ -28,8 +29,10 @@ double calculateSteering(std::vector<int> pixels, bool isLeft) {
       }
     }
   }
+
+  // Logs
   // Steering angle calculation
-  std::cout << "m: " << multiplier<<std::endl;
+  std::cout << "m: " << multiplier << std::endl;
   double angle = multiplier / pixels.size() * 0.3;
   std::cout << "Angle: " << angle << std::endl;
   return angle;
@@ -37,16 +40,18 @@ double calculateSteering(std::vector<int> pixels, bool isLeft) {
 
 // Compare the steering afainst the 'ground' steering
 bool isValidSteeringAngle(double actual, double predicted) {
-  double minInterval = 0.75 * actual; //0.084375
-  double maxInterval = 1.25 * actual; //0.140625
-  //0.1125>=0.084375 && 0.1125<=0.140625
+  double minInterval = 0.75 * actual;
+  double maxInterval = 1.25 * actual;
+
   return predicted >= minInterval && predicted <= maxInterval;
 }
 
+// Count the number of pixels each a color within a region of a single frame.
 std::vector<int> getDataPointsPerFrame(int colorId, cv::Mat hsv) {
   int pixelCount;
   std::vector<int> pixels;
 
+  // Color configuration
   int minY, maxY, minX, maxX;
   switch (colorId) {
   case 0:
@@ -70,9 +75,7 @@ std::vector<int> getDataPointsPerFrame(int colorId, cv::Mat hsv) {
       pixelCount =
           checkZone(hsv, x, x + INCREMENT_X, y, y + INCREMENT_Y, colorId);
       pixels.push_back(pixelCount);
-      //debug(hsv, x, y, distance, 0);
     }
   }
-
   return pixels;
 }

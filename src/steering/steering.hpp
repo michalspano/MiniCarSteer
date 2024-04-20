@@ -1,6 +1,6 @@
 /*******************************************************************************
- * cone_detection
- * File: {@code cone_detector.h} [header file]
+ * steering
+ * File: {@code steering.h} [header file]
  * Authors: Arumeel Kaisa, Khodaparast Omid, Michal Spano, Säfström Alexander
  *
  * DIT639 Cyber Physical Systems and Sytems of Systems
