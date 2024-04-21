@@ -7,3 +7,5 @@ build
 # Exclude IDE clutter
 .vscode
 .idea
+python-portable/__pycache__
+python-portable/venv
