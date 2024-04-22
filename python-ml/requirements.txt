@@ -1,0 +1,8 @@
+sysv_ipc
+numpy
+opencv-python
+protobuf
+pandas
+joblib
+scikit-learn
+matplotlib

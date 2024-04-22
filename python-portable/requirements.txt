@@ -1,4 +1,0 @@
-sysv_ipc
-numpy
-opencv-python
-protobuf
