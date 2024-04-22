@@ -95,6 +95,7 @@ grid_search.fit(X_train_scaled, y_train_scaled.ravel())
 
 best_model = grid_search.best_estimator_
 predictions_scaled = best_model.predict(X_test_scaled)
+print("Best Parameters:", grid_search.best_params_)
 
 # Inverse transform predictions to get them back on the original target scale
 predictions = y_scaler.inverse_transform(predictions_scaled.reshape(-1, 1))
