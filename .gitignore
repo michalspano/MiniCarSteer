@@ -9,3 +9,4 @@ build
 .idea
 python-portable/__pycache__
 python-portable/venv
+/datasets/venv

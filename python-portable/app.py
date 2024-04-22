@@ -25,24 +25,25 @@ import cv2
 import OD4Session
 # Import the OpenDLV Standard Message Set.
 import opendlv_standard_message_set_v0_9_6_pb2
+import joblib
+import pandas as pd
 
 ################################################################################
 # This dictionary contains all distance values to be filled by function onDistance(...).
-distances = { "front": 0.0, "left": 0.0, "right": 0.0, "rear": 0.0 };
-
+global gsr
+global angular
+gsr =0.0
+angular=0.0
 ################################################################################
 # This callback is triggered whenever there is a new distance reading coming in.
-def onDistance(msg, senderStamp, timeStamps):
-    print ("Received distance; senderStamp= %s" % (str(senderStamp)))
-    print ("sent: %s, received: %s, sample time stamps: %s" % (str(timeStamps[0]), str(timeStamps[1]), str(timeStamps[2])))
-    if senderStamp == 0:
-        distances["front"] = msg.distance
-    if senderStamp == 1:
-        distances["left"] = msg.distance
-    if senderStamp == 2:
-        distances["rear"] = msg.distance
-    if senderStamp == 3:
-        distances["right"] = msg.distance
+def onGSR(msg, senderStamp, timeStamps):
+    global gsr
+    gsr=msg.groundSteering
+
+def onVelocity(msg, senderStamp, timeStamps):
+    global angular
+    angular=msg.angularVelocityZ
+
 
 
 # Create a session to send and receive messages from a running OD4Session;
@@ -53,8 +54,8 @@ session = OD4Session.OD4Session(cid=253)
 # Register a handler for a message; the following example is listening
 # for messageID 1039 which represents opendlv.proxy.DistanceReading.
 # Cf. here: https://github.com/chalmers-revere/opendlv.standard-message-set/blob/master/opendlv.odvd#L113-L115
-messageIDDistanceReading = 1039
-session.registerMessageCallback(messageIDDistanceReading, onDistance, opendlv_standard_message_set_v0_9_6_pb2.opendlv_proxy_DistanceReading)
+session.registerMessageCallback(1090, onGSR, opendlv_standard_message_set_v0_9_6_pb2.opendlv_proxy_GroundSteeringRequest)
+session.registerMessageCallback(1031, onVelocity, opendlv_standard_message_set_v0_9_6_pb2.opendlv_proxy_AngularVelocityReading)
 # Connect to the network session.
 session.connect()
 
@@ -70,13 +71,13 @@ keySemCondition = sysv_ipc.ftok(name, 3, True)
 shm = sysv_ipc.SharedMemory(keySharedMemory)
 mutex = sysv_ipc.Semaphore(keySemCondition)
 cond = sysv_ipc.Semaphore(keySemCondition)
-
+correct=0
+incorrect=0
 ################################################################################
 # Main loop to process the next image frame coming in.
 while True:
     # Wait for next notification.
     cond.Z()
-    print ("Received new framesss.")
 
     # Lock access to shared memory.
     mutex.acquire()
@@ -86,6 +87,31 @@ while True:
     buf = shm.read()
     # Detach to shared memory.
     shm.detach()
+    if gsr==0.0:
+        continue
+    
+    loaded_model = joblib.load('steering_prediction_model.pkl')
+
+    # Example: Predicting steering for a new velocity value
+    new_velocity = [[angular]]  # Example new data point
+    new_data = pd.DataFrame({'velocity': [angular]})
+
+    predicted_steering = loaded_model.predict(new_data)
+    predicted_steering=abs(predicted_steering[0])
+    gsr=abs(gsr)
+    print(gsr)
+    print(predicted_steering)
+    # Calculate the acceptable range, 25% above and below the target
+    lower_bound = (gsr * 0.75)  # 25% less than the target
+    upper_bound = (gsr * 1.25) # 25% more than the target
+
+    # Check if the predicted steering angle falls within the acceptable range
+    if lower_bound <= predicted_steering <= upper_bound:
+        correct+=1
+    else:
+        incorrect+=1
+    print("Correct: ",correct)
+    print("Incorrect: ",incorrect)
     # Unlock access to shared memory.
     mutex.release()
 
@@ -106,34 +132,4 @@ while True:
     cv2.imshow("image", img_copy);
     cv2.waitKey(2);
 
-    ############################################################################
-    # Example: Accessing the distance readings.
-    print ("Front = %s" % (str(distances["front"])))
-    print ("Left = %s" % (str(distances["left"])))
-    print ("Right = %s" % (str(distances["right"])))
-    print ("Rear = %s" % (str(distances["rear"])))
-
-    ############################################################################
-    # Example for creating and sending a message to other microservices; can
-    # be removed when not needed.
-    angleReading = opendlv_standard_message_set_v0_9_6_pb2.opendlv_proxy_AngleReading()
-    angleReading.angle = 123.45
-
-    # 1038 is the message ID for opendlv.proxy.AngleReading
-    session.send(1038, angleReading.SerializeToString());
-
-    ############################################################################
-    # Steering and acceleration/decelration.
-    #
-    # Uncomment the following lines to steer; range: +38deg (left) .. -38deg (right).
-    # Value groundSteeringRequest.groundSteering must be given in radians (DEG/180. * PI).
-    #groundSteeringRequest = opendlv_standard_message_set_v0_9_6_pb2.opendlv_proxy_GroundSteeringRequest()
-    #groundSteeringRequest.groundSteering = 0
-    #session.send(1090, groundSteeringRequest.SerializeToString());
-
-    # Uncomment the following lines to accelerate/decelerate; range: +0.25 (forward) .. -1.0 (backwards).
-    # Be careful!
-    #pedalPositionRequest = opendlv_standard_message_set_v0_9_6_pb2.opendlv_proxy_PedalPositionRequest()
-    #pedalPositionRequest.position = 0
-    #session.send(1086, pedalPositionRequest.SerializeToString());
 
