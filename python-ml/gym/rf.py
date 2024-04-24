@@ -8,7 +8,7 @@ import joblib
 from sklearn.model_selection import GridSearchCV
 import numpy as np
 import time
-
+plt.switch_backend('TkAgg')
 # Initialize grid search params
 param_grid = {
     "n_estimators": [80, 90, 100, 150],
@@ -17,6 +17,8 @@ param_grid = {
     "min_samples_leaf": [1, 2, 3, 4, 5],
     "bootstrap": [True, False],
 }
+
+
 # Initialize empty DataFrames for features and target
 joined_features = pd.DataFrame(
     columns=["magneticFieldZ", "accelerationY", "angularVelocityZ", "heading"]
@@ -26,11 +28,11 @@ joined_targets = pd.DataFrame(columns=["steering"])
 # Loop through the files for 6 cars
 for i in range(1, 7):  # 1 to 6 inclusive
     # Setup the paths to read from
-    steering_file = f"../datasets/car.{i}.steering.txt"
-    magneticZ_file = f"../datasets/car.{i}.mag.z.txt"
-    accelerationY_file = f"../datasets/car.{i}.acceleration.y.txt"
-    velocityZ_file = f"../datasets/car.{i}.velocity.z.txt"
-    heading_file = f"../datasets/car.{i}.heading.txt"
+    steering_file = f"../datasets/nonzero/car.{i}.steering.txt"
+    magneticZ_file = f"../datasets/nonzero/car.{i}.mag.z.txt"
+    accelerationY_file = f"../datasets/nonzero/car.{i}.acceleration.y.txt"
+    velocityZ_file = f"../datasets/nonzero/car.{i}.velocity.z.txt"
+    heading_file = f"../datasets/nonzero/car.{i}.heading.txt"
 
     # Read datasets into dataframes
     steering = pd.read_csv(steering_file, names=["steering"])

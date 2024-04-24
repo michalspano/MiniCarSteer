@@ -2,6 +2,28 @@ import numpy as np
 import pandas as pd
 import joblib
 
+def predict_turning(
+    magneticFieldZ, accelerationY, angularVelocityZ, heading, X_scaler, model_path
+):
+    # Load the previous scalers
+    X_scaler = joblib.load(X_scaler)
+
+    # Load the RF model
+    rf = joblib.load(model_path)
+
+    # Create X inputs
+    X = pd.DataFrame(
+        [[magneticFieldZ, accelerationY, angularVelocityZ, heading]],
+        columns=["magneticFieldZ", "accelerationY", "angularVelocityZ", "heading"],
+    )
+
+    # Scale X inputs in accordance to X scaler params
+    X_scaled = X_scaler.transform(X)
+    
+    # Predict if we are turning or not
+    predicted_class = rf.predict(X_scaled)
+
+    return predicted_class
 
 def predict_steering_angle(
     magneticFieldZ, accelerationY, angularVelocityZ, heading, X_scaler, y_scaler, model
