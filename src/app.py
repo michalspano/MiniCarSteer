@@ -17,11 +17,9 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 # sysv_ipc is needed to access the shared memory where the camera image is present.
-import sysv_ipc
-import sys
+import sysv_ipc, sys
 # numpy and cv2 are needed to access, modify, or display the pixels
-import numpy
-import cv2
+import numpy, cv2
 
 # OD4Session is needed to send and receive messages
 from opendlv import OD4Session
@@ -201,6 +199,4 @@ while True:
     carData["wheelStateAccuracy"]=(carData["correctWheelState"] / (carData["incorrectWheelState"] + carData["correctWheelState"]))*100
 
     carData["steeringAngleAccuracy"]=(carData["correctSteeringAngle"] / (carData["correctSteeringAngle"] + carData["incorrectSteeringAngle"]))*100
-    
-    
     
