@@ -7,8 +7,5 @@ build
 # Exclude IDE clutter
 .vscode
 .idea
-python-ml/__pycache__
-python-ml/helpers
-python-ml/venv
-python-ml/opendlv/__pycache__
-/datasets/venv
+__pycache__
+venv
