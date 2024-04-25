@@ -28,6 +28,8 @@ from opendlv import OD4Session
 from opendlv import opendlv_standard_message_set_v0_9_6_pb2
 from predict import predict_steering_angle,predict_turning
 
+global sampleTimeStamp
+sampleTimeStamp=0.0
 global carData
 carData={
     "groundSteeringRequest":0,
@@ -46,29 +48,35 @@ carData={
 session = OD4Session.OD4Session(cid=253)
 
 # Callback function for the onGroundSteeringRequest
-def onGroundSteeringRequest(msg, senderStamp, timeStamps):
+def onGroundSteeringRequest(msg, timestamp):
     global carData
     carData["groundSteeringRequest"] = msg.groundSteering
+    global sampleTimeStamp
+    sampleTimeStamp=timestamp
 
-def onMagnetic(msg, senderStamp, timeStamps):
+def onMagnetic(msg, timestamp):
     global carData
     carData["magneticFieldZ"] = msg.magneticFieldZ
+    global sampleTimeStamp
+    sampleTimeStamp=timestamp
 
-
-def onVelocity(msg, senderStamp, timeStamps):
+def onVelocity(msg, timestamp):
     global carData
     carData["angularVelocityZ"] = msg.angularVelocityZ
+    global sampleTimeStamp
+    sampleTimeStamp=timestamp
 
-
-def onAccelerationY(msg, senderStamp, timeStamps):
+def onAccelerationY(msg, timestamp):
     global carData
     carData["accelerationY"] = msg.accelerationY
+    global sampleTimeStamp
+    sampleTimeStamp=timestamp
 
-
-def onHeading(msg, senderStamp, timeStamps):
+def onHeading(msg, timestamp):
     global carData
     carData["heading"] = msg.heading
-
+    global sampleTimeStamp
+    sampleTimeStamp=timestamp
 
 # Registers a handler for steering angle, velocity z, magnetic z, acceleration y, heading.
 session.registerMessageCallback(
@@ -172,7 +180,7 @@ while True:
     
     # Release lock
     mutex.release()
-    
+    print(sampleTimeStamp)
     print("Predicted groundSteeringRequest: ", predicted_groundSteeringRequest)
     print("Actual groundSteeringRequest: ", carData["groundSteeringRequest"])
     print("Turns within OK interval (%)", carData["steeringAngleAccuracy"])
