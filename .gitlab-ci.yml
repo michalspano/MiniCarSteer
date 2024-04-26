@@ -27,8 +27,7 @@ before_script:
   - apk update && apk add curl
 
   # Install release-cli to make releases
-  - curl --location --output /usr/local/bin/release-cli \
-    "https://gitlab.com/api/v4/projects/gitlab-org%2Frelease-cli/packages/generic/release-cli/latest/release-cli-linux-amd64"
+  - curl --location --output /usr/local/bin/release-cli "https://gitlab.com/api/v4/projects/gitlab-org%2Frelease-cli/packages/generic/release-cli/latest/release-cli-linux-amd64"
 
   # Gie executable permissions to release-cli
   - chmod +x /usr/local/bin/release-cli
