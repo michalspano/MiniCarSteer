@@ -20,6 +20,7 @@
 import sysv_ipc, sys
 # numpy and cv2 are needed to access, modify, or display the pixels
 import numpy, cv2
+import matplotlib.pyplot as plt
 
 # OD4Session is needed to send and receive messages
 from opendlv import OD4Session
@@ -47,6 +48,11 @@ carData={
 }
 
 session = OD4Session.OD4Session(cid=253)
+
+# Arrays to store all the timestamps and steering angles from one video
+timestamps = []
+ground_steering_requests = []
+predicted_steering_requests = []
 
 # Callback function for the onGroundSteeringRequest
 def onGroundSteeringRequest(msg, senderStamp, timeStamps):
@@ -147,6 +153,8 @@ while True:
     # Get the last modified time
     timestamp  = file_meta.st_mtime
     timestamp_microseconds = int(timestamp * 1000000)
+    # Add the timestamp to this video's timestamp array for plotting
+    timestamps.append(timestamp_microseconds)
     
     predicted_groundSteeringRequest=0
     # Predict the steering angle using RF model and get the absolute value
@@ -161,8 +169,7 @@ while True:
     # If turn detection detects turning we forward it to the 
     # steering prediction model
     if is_turning==1:
-        predicted_groundSteeringRequest = abs(
-            predict_steering_angle(
+        predicted_groundSteeringRequest = predict_steering_angle(
                 carData["magneticFieldZ"],
                 carData["accelerationY"],
                 carData["angularVelocityZ"],
@@ -171,24 +178,33 @@ while True:
                 steering_prediction_target_scaler,
                 steering_prediction_model
             )
-        )
     else:
         predicted_groundSteeringRequest=0
+    
+    # Append the predicted and actual steering angles to arrays for plotting
+    predicted_steering_requests.append(predicted_groundSteeringRequest)
+    ground_steering_requests.append(carData["groundSteeringRequest"])
 
-    # Get the absolute value of the current wheel angle
+    # Display the current timestamp and predicted steering angle
+    print("group_9; ", timestamp_microseconds, "; ", predicted_groundSteeringRequest)
+
+    # Get the absolute value of the predicted steering angle
+    predicted_groundSteeringRequest = abs(predicted_groundSteeringRequest)
+
+    # Get the absolute value of the actual current wheel angle
     carData["groundSteeringRequest"] = abs(carData["groundSteeringRequest"])
 
     # Calculate upper and lower bounds for the intervals
     lower_bound = carData["groundSteeringRequest"] * 0.75
     upper_bound = carData["groundSteeringRequest"] * 1.25
-    
+
     # Release lock
     mutex.release()
-    print("Group 9; ", timestamp_microseconds, "; ", carData["groundSteeringRequest"])
+    
     #print("Predicted groundSteeringRequest: ", predicted_groundSteeringRequest)
     #print("Actual groundSteeringRequest: ", carData["groundSteeringRequest"])
     #print("Turns within OK interval (%)", carData["steeringAngleAccuracy"])
-   #print("Wheel state accuracy (%): ",carData["wheelStateAccuracy"])
+    #print("Wheel state accuracy (%): ",carData["wheelStateAccuracy"])
 
     # Dont compute score on straights if turns only flag is active
     if carData["groundSteeringRequest"]==0 and turns_only:
@@ -212,3 +228,14 @@ while True:
 
     carData["steeringAngleAccuracy"]=(carData["correctSteeringAngle"] / (carData["correctSteeringAngle"] + carData["incorrectSteeringAngle"]))*100
     
+    # Plot a graph to compare actual and predicted steering angle
+    plt.figure(figsize=(10, 6))
+    plt.plot(timestamps, ground_steering_requests, label='Actual Ground Steering Request')
+    plt.plot(timestamps, predicted_steering_requests, label='Predicted Ground Steering Request')
+    plt.xlabel('Sample Time (microseconds)')
+    plt.ylabel('Steering Angle')
+    plt.title('Actual vs. Predicted Ground Steering Request')
+    plt.legend()
+    plt.grid(True)
+    plt.savefig('plot1.png')
+    plt.close()
