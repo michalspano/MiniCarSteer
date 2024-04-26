@@ -49,25 +49,29 @@ carData={
 session = OD4Session.OD4Session(cid=253)
 
 # Callback function for the onGroundSteeringRequest
-def onGroundSteeringRequest(msg):
+def onGroundSteeringRequest(msg, senderStamp, timeStamps):
     global carData
     carData["groundSteeringRequest"] = msg.groundSteering
 
-def onMagnetic(msg):
+def onMagnetic(msg, senderStamp, timeStamps):
     global carData
     carData["magneticFieldZ"] = msg.magneticFieldZ
 
-def onVelocity(msg):
+
+def onVelocity(msg, senderStamp, timeStamps):
     global carData
     carData["angularVelocityZ"] = msg.angularVelocityZ
 
-def onAccelerationY(msg):
+
+def onAccelerationY(msg, senderStamp, timeStamps):
     global carData
     carData["accelerationY"] = msg.accelerationY
 
-def onHeading(msg):
+
+def onHeading(msg, senderStamp, timeStamps):
     global carData
     carData["heading"] = msg.heading
+
 
 # Registers a handler for steering angle, velocity z, magnetic z, acceleration y, heading.
 session.registerMessageCallback(
@@ -142,8 +146,8 @@ while True:
 
     # Get the last modified time
     timestamp  = file_meta.st_mtime
-    print(timestamp)
-
+    #print(timestamp)
+    
     predicted_groundSteeringRequest=0
     # Predict the steering angle using RF model and get the absolute value
     is_turning=predict_turning(            
