@@ -146,7 +146,7 @@ while True:
 
     # Get the last modified time
     timestamp  = file_meta.st_mtime
-    #print(timestamp)
+    timestamp_microseconds = int(timestamp * 1000000)
     
     predicted_groundSteeringRequest=0
     # Predict the steering angle using RF model and get the absolute value
@@ -184,10 +184,11 @@ while True:
     
     # Release lock
     mutex.release()
-    print("Predicted groundSteeringRequest: ", predicted_groundSteeringRequest)
-    print("Actual groundSteeringRequest: ", carData["groundSteeringRequest"])
-    print("Turns within OK interval (%)", carData["steeringAngleAccuracy"])
-    print("Wheel state accuracy (%): ",carData["wheelStateAccuracy"])
+    print("Group 9; ", timestamp_microseconds, "; ", carData["groundSteeringRequest"])
+    #print("Predicted groundSteeringRequest: ", predicted_groundSteeringRequest)
+    #print("Actual groundSteeringRequest: ", carData["groundSteeringRequest"])
+    #print("Turns within OK interval (%)", carData["steeringAngleAccuracy"])
+   #print("Wheel state accuracy (%): ",carData["wheelStateAccuracy"])
 
     # Dont compute score on straights if turns only flag is active
     if carData["groundSteeringRequest"]==0 and turns_only:
