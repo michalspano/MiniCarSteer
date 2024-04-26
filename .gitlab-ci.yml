@@ -22,9 +22,14 @@ before_script:
   - docker info
   - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
 
-  # install release-cli to make releases
+  # Update and upgrade repository indices. Curl is later on used to download
+  # release-cli.
+  - apk update && apk add curl
+
+  # Install release-cli to make releases
   - curl --location --output /usr/local/bin/release-cli \
     "https://gitlab.com/api/v4/projects/gitlab-org%2Frelease-cli/packages/generic/release-cli/latest/release-cli-linux-amd64"
+
   # Gie executable permissions to release-cli
   - chmod +x /usr/local/bin/release-cli
 
