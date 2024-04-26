@@ -28,8 +28,9 @@ from opendlv import OD4Session
 from opendlv import opendlv_standard_message_set_v0_9_6_pb2
 from predict import predict_steering_angle,predict_turning
 
-global sampleTimeStamp
-sampleTimeStamp=0.0
+import os
+import time
+
 global carData
 carData={
     "groundSteeringRequest":0,
@@ -48,35 +49,25 @@ carData={
 session = OD4Session.OD4Session(cid=253)
 
 # Callback function for the onGroundSteeringRequest
-def onGroundSteeringRequest(msg, timestamp):
+def onGroundSteeringRequest(msg):
     global carData
     carData["groundSteeringRequest"] = msg.groundSteering
-    global sampleTimeStamp
-    sampleTimeStamp=timestamp
 
-def onMagnetic(msg, timestamp):
+def onMagnetic(msg):
     global carData
     carData["magneticFieldZ"] = msg.magneticFieldZ
-    global sampleTimeStamp
-    sampleTimeStamp=timestamp
 
-def onVelocity(msg, timestamp):
+def onVelocity(msg):
     global carData
     carData["angularVelocityZ"] = msg.angularVelocityZ
-    global sampleTimeStamp
-    sampleTimeStamp=timestamp
 
-def onAccelerationY(msg, timestamp):
+def onAccelerationY(msg):
     global carData
     carData["accelerationY"] = msg.accelerationY
-    global sampleTimeStamp
-    sampleTimeStamp=timestamp
 
-def onHeading(msg, timestamp):
+def onHeading(msg):
     global carData
     carData["heading"] = msg.heading
-    global sampleTimeStamp
-    sampleTimeStamp=timestamp
 
 # Registers a handler for steering angle, velocity z, magnetic z, acceleration y, heading.
 session.registerMessageCallback(
@@ -115,6 +106,8 @@ name = "/tmp/img"
 keySharedMemory = sysv_ipc.ftok(name, 1, True)
 keySemMutex = sysv_ipc.ftok(name, 2, True)
 keySemCondition = sysv_ipc.ftok(name, 3, True)
+
+
 # Instantiate the SharedMemory and Semaphore objects.
 shm = sysv_ipc.SharedMemory(keySharedMemory)
 mutex = sysv_ipc.Semaphore(keySemCondition)
@@ -143,6 +136,13 @@ while True:
     buf = shm.read()
     # Detach to shared memory.
     shm.detach()
+    
+    # Acquire shared memory
+    file_meta = os.stat(name)
+
+    # Get the last modified time
+    timestamp  = file_meta.st_mtime
+    print(timestamp)
 
     predicted_groundSteeringRequest=0
     # Predict the steering angle using RF model and get the absolute value
@@ -180,7 +180,6 @@ while True:
     
     # Release lock
     mutex.release()
-    print(sampleTimeStamp)
     print("Predicted groundSteeringRequest: ", predicted_groundSteeringRequest)
     print("Actual groundSteeringRequest: ", carData["groundSteeringRequest"])
     print("Turns within OK interval (%)", carData["steeringAngleAccuracy"])

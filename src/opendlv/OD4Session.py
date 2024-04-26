@@ -87,12 +87,11 @@ class OD4Session:
 
 
     def __process(self, e):
-        timestamp=e.sampleTimeStamp.seconds+(e.sampleTimeStamp.microseconds/1000000)
         # Check for registered callbacks.
         if e.dataType in self.callbacks.keys():
             msg = self.callbacks[e.dataType][1]()
             msg.ParseFromString(e.serializedData)
-            _thread.start_new_thread(self.callbacks[e.dataType][0], (msg, timestamp) + (self.callbacks[e.dataType][2]))
+            _thread.start_new_thread(self.callbacks[e.dataType][0], (msg) + (self.callbacks[e.dataType][2]))
 
 
     def __runner(self):
