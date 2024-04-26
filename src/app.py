@@ -17,10 +17,10 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 # sysv_ipc is needed to access the shared memory where the camera image is present.
-import sysv_ipc, sys
+import sysv_ipc
+
 # numpy and cv2 are needed to access, modify, or display the pixels
 import numpy, cv2
-import matplotlib.pyplot as plt
 
 # OD4Session is needed to send and receive messages
 from opendlv import OD4Session
@@ -29,30 +29,40 @@ from opendlv import OD4Session
 from opendlv import opendlv_standard_message_set_v0_9_6_pb2
 from predict import predict_steering_angle,predict_turning
 
-import os
-import time
+import os, time
+import argparse
 
-global carData
-carData={
-    "groundSteeringRequest":0,
-    "angularVelocityZ":0,
-    "magneticFieldZ":0,
-    "accelerationY":0,
-    "heading":0,
-    "correctSteeringAngle":0,
-    "incorrectSteeringAngle":0,
-    "correctWheelState":0,
-    "incorrectWheelState":0,
-    "steeringAngleAccuracy":0,
-    "wheelStateAccuracy":0
+# The following command-line arguments are supported:
+# --turns-only (to count only turns or no)  [default=None]
+# --graph (compute a graph of the accuracy) [default=None]
+parser = argparse.ArgumentParser(
+        description='Calculate the steering angle from rec files.'
+)
+parser.add_argument('--turns-only', '-t-o', dest='turns_only',
+                    action='store_true', help='count only the turns')
+parser.add_argument('--graph', '-g', dest='gen_graph',
+                    action='store_true', help='generate a graph')
+
+# Process the arguments
+args = parser.parse_args()
+
+# Store all necessary data about the car
+carData = {
+    "groundSteeringRequest": 0,
+    "angularVelocityZ": 0,
+    "magneticFieldZ": 0,
+    "accelerationY": 0,
+    "heading": 0,
+    "correctSteeringAngle": 0,
+    "incorrectSteeringAngle": 0,
+    "correctWheelState": 0,
+    "incorrectWheelState": 0,
+    "steeringAngleAccuracy": 0.0,
+    "wheelStateAccuracy": 0.0
 }
 
+# FIXME: extract the `OD4Session` configuration to a stand-alone module.
 session = OD4Session.OD4Session(cid=253)
-
-# Arrays to store all the timestamps and steering angles from one video
-timestamps = []
-ground_steering_requests = []
-predicted_steering_requests = []
 
 # Callback function for the onGroundSteeringRequest
 def onGroundSteeringRequest(msg, senderStamp, timeStamps):
@@ -78,6 +88,7 @@ def onHeading(msg, senderStamp, timeStamps):
     global carData
     carData["heading"] = msg.heading
 
+print("Instantiating an OD4Session session.")
 
 # Registers a handler for steering angle, velocity z, magnetic z, acceleration y, heading.
 session.registerMessageCallback(
@@ -114,27 +125,33 @@ name = "/tmp/img"
 
 # Obtain the keys for the shared memory and semaphores.
 keySharedMemory = sysv_ipc.ftok(name, 1, True)
-keySemMutex = sysv_ipc.ftok(name, 2, True)
+keySemMutex     = sysv_ipc.ftok(name, 2, True)
 keySemCondition = sysv_ipc.ftok(name, 3, True)
 
-
 # Instantiate the SharedMemory and Semaphore objects.
-shm = sysv_ipc.SharedMemory(keySharedMemory)
+shm   = sysv_ipc.SharedMemory(keySharedMemory)
 mutex = sysv_ipc.Semaphore(keySemCondition)
-cond = sysv_ipc.Semaphore(keySemCondition)
+cond  = sysv_ipc.Semaphore(keySemCondition)
 
-turn_detection_model="models/Hildegard.joblib"
-turn_detection_scaler="models/Hildegard-feature.joblib"
+# Relative paths to the models
+turn_detection_model               = "models/Hildegard.joblib"
+turn_detection_scaler              = "models/Hildegard-feature.joblib"
+steering_prediction_model          = "models/Tesla.joblib"
+steering_prediction_feature_scaler = "models/Tesla-feature.joblib"
+steering_prediction_target_scaler  = "models/Tesla-target.joblib"
 
-steering_prediction_model="models/Tesla.joblib"
-steering_prediction_feature_scaler="models/Tesla-feature.joblib"
-steering_prediction_target_scaler="models/Tesla-target.joblib"
+# Relative path to the graph-generator module
+graph_gen_log = "/tmp/graph-log.csv"
 
-# System flags
-turns_only = "--turns-only" in sys.argv
+# Add header, reset the file (only supported in `graph` mode)
+if args.gen_graph:
+    with open(graph_gen_log, "w") as f:
+        f.write("timestamp;ground;predicted\n")
 
+print("Configuration successful, waiting for an input stream...")
 
 # Main loop to process the next image frame coming in.
+# FIXME: many of these computations can be extracted to stand-alone functions.
 while True:
     # Wait for next notification.
     cond.Z()
@@ -151,14 +168,13 @@ while True:
     file_meta = os.stat(name)
 
     # Get the last modified time
-    timestamp  = file_meta.st_mtime
-    timestamp_microseconds = int(timestamp * 1000000)
-    # Add the timestamp to this video's timestamp array for plotting
-    timestamps.append(timestamp_microseconds)
-    
-    predicted_groundSteeringRequest=0
+    timestamp = file_meta.st_mtime
+    timestamp_ms = int(timestamp * 1000000)
+        
+    predicted_groundSteeringRequest = 0
+
     # Predict the steering angle using RF model and get the absolute value
-    is_turning=predict_turning(            
+    is_turning = predict_turning(            
         carData["magneticFieldZ"],
         carData["accelerationY"],
         carData["angularVelocityZ"],
@@ -168,7 +184,7 @@ while True:
 
     # If turn detection detects turning we forward it to the 
     # steering prediction model
-    if is_turning==1:
+    if is_turning == 1:
         predicted_groundSteeringRequest = predict_steering_angle(
                 carData["magneticFieldZ"],
                 carData["accelerationY"],
@@ -179,14 +195,20 @@ while True:
                 steering_prediction_model
             )
     else:
-        predicted_groundSteeringRequest=0
+        predicted_groundSteeringRequest = 0
     
-    # Append the predicted and actual steering angles to arrays for plotting
-    predicted_steering_requests.append(predicted_groundSteeringRequest)
-    ground_steering_requests.append(carData["groundSteeringRequest"])
+    # Append the timestamp, predicted and actual steering angles to arrays for
+    # plotting. Supported in `graph` mode
+    if args.gen_graph:
+        with open(graph_gen_log, 'a') as f:
+            # Write as a new row to the CVS file
+            row = f"{timestamp};{predicted_groundSteeringRequest};{carData['groundSteeringRequest']}\n"
+            f.write(row)
 
+    """
     # Display the current timestamp and predicted steering angle
-    #print("group_9; ", timestamp_microseconds, "; ", predicted_groundSteeringRequest)
+    print("group_9; ", timestamp_microseconds, "; ", predicted_groundSteeringRequest)
+    """
 
     # Get the absolute value of the predicted steering angle
     predicted_groundSteeringRequest = abs(predicted_groundSteeringRequest)
@@ -201,14 +223,16 @@ while True:
     # Release lock
     mutex.release()
     
+    # Log the values
     print("Predicted groundSteeringRequest: ", predicted_groundSteeringRequest)
     print("Actual groundSteeringRequest: ", carData["groundSteeringRequest"])
     print("Turns within OK interval (%)", carData["steeringAngleAccuracy"])
-    print("Wheel state accuracy (%): ",carData["wheelStateAccuracy"])
+    print("Wheel state accuracy (%): ", carData["wheelStateAccuracy"])
 
-    # Dont compute score on straights if turns only flag is active
-    if carData["groundSteeringRequest"]==0 and turns_only:
+    # Don't compute score on straights if turns only flag is active
+    if carData["groundSteeringRequest"] == 0 and args.turns_only:
         continue
+
     # If the predicted GSR is less than upper bound but greater than lower bound
     if lower_bound <= predicted_groundSteeringRequest <= upper_bound:
         # Increment correct count
@@ -217,25 +241,19 @@ while True:
         # If not, increment the incorrect count
         carData["incorrectSteeringAngle"] += 1
     
-    if carData["groundSteeringRequest"]==0 and is_turning==0:
-        carData["correctWheelState"]+=1
-    elif carData["groundSteeringRequest"]!=0 and is_turning==1:
-        carData["correctWheelState"]+=1
+    if carData["groundSteeringRequest"] == 0 and is_turning == 0:
+        carData["correctWheelState"] += 1
+    elif carData["groundSteeringRequest"] != 0 and is_turning == 1:
+        carData["correctWheelState"] += 1
     else:
-        carData["incorrectWheelState"]+=1
-
-    carData["wheelStateAccuracy"]=(carData["correctWheelState"] / (carData["incorrectWheelState"] + carData["correctWheelState"]))*100
-
-    carData["steeringAngleAccuracy"]=(carData["correctSteeringAngle"] / (carData["correctSteeringAngle"] + carData["incorrectSteeringAngle"]))*100
+        carData["incorrectWheelState"] += 1
     
-    '''# Plot a graph to compare actual and predicted steering angle
-    plt.figure(figsize=(10, 6))
-    plt.plot(timestamps, ground_steering_requests, label='Actual Ground Steering Request')
-    plt.plot(timestamps, predicted_steering_requests, label='Predicted Ground Steering Request')
-    plt.xlabel('sampleTime (microseconds)')
-    plt.ylabel('Steering angle')
-    plt.title('Actual vs. Predicted Ground Steering Request')
-    plt.legend()
-    plt.grid(True)
-    plt.savefig('plot.png')
-    plt.close()'''
+    # Compute the percentage statistics
+    carData["wheelStateAccuracy"] = (carData["correctWheelState"] /
+                                     (carData["incorrectWheelState"] +
+                                      carData["correctWheelState"])) * 100
+
+    carData["steeringAngleAccuracy"] = (carData["correctSteeringAngle"] /
+                                        (carData["correctSteeringAngle"] +
+                                         carData["incorrectSteeringAngle"])) * 100
+
