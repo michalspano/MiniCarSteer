@@ -186,7 +186,7 @@ while True:
     ground_steering_requests.append(carData["groundSteeringRequest"])
 
     # Display the current timestamp and predicted steering angle
-    print("group_9; ", timestamp_microseconds, "; ", predicted_groundSteeringRequest)
+    #print("group_9; ", timestamp_microseconds, "; ", predicted_groundSteeringRequest)
 
     # Get the absolute value of the predicted steering angle
     predicted_groundSteeringRequest = abs(predicted_groundSteeringRequest)
@@ -201,10 +201,10 @@ while True:
     # Release lock
     mutex.release()
     
-    #print("Predicted groundSteeringRequest: ", predicted_groundSteeringRequest)
-    #print("Actual groundSteeringRequest: ", carData["groundSteeringRequest"])
-    #print("Turns within OK interval (%)", carData["steeringAngleAccuracy"])
-    #print("Wheel state accuracy (%): ",carData["wheelStateAccuracy"])
+    print("Predicted groundSteeringRequest: ", predicted_groundSteeringRequest)
+    print("Actual groundSteeringRequest: ", carData["groundSteeringRequest"])
+    print("Turns within OK interval (%)", carData["steeringAngleAccuracy"])
+    print("Wheel state accuracy (%): ",carData["wheelStateAccuracy"])
 
     # Dont compute score on straights if turns only flag is active
     if carData["groundSteeringRequest"]==0 and turns_only:
@@ -228,7 +228,7 @@ while True:
 
     carData["steeringAngleAccuracy"]=(carData["correctSteeringAngle"] / (carData["correctSteeringAngle"] + carData["incorrectSteeringAngle"]))*100
     
-    # Plot a graph to compare actual and predicted steering angle
+    '''# Plot a graph to compare actual and predicted steering angle
     plt.figure(figsize=(10, 6))
     plt.plot(timestamps, ground_steering_requests, label='Actual Ground Steering Request')
     plt.plot(timestamps, predicted_steering_requests, label='Predicted Ground Steering Request')
@@ -238,4 +238,4 @@ while True:
     plt.legend()
     plt.grid(True)
     plt.savefig('plot.png')
-    plt.close()
+    plt.close()'''

@@ -30,6 +30,10 @@ This feature has previously shown a linear relationship between its value and st
 
 | Car File | Correctly predicted wheel states (%) | Track Direction |
 |----------|--------------------------------------|-----------------|
-| car1     | 94.32                                | CW              |
-| car2     | 89.01                                 | CCW             |
-| car3     | 94.07                                 | CCW             |
+| car1     | 87.89                                | CW              |
+| car2     | 80.41                                | CCW             |
+| car3     | 82.60                                | CCW             |
+| car4     | 87.41                                | CCW             |
+| car5     | 84.27                                | CCW             |
+| car6     | 84.81                                | CCW             |
+

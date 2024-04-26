@@ -23,12 +23,12 @@ This feature has previously shown a linear relationship between its value and st
 ### (Live) Real-time testing results 
 *(including out-of-sample data)*
 
-| Car File | Turns within interval (%) | Track Direction |
-|----------|---------------------------|-----------------|
-| car1     | 69.09                     | CW              |
-| car2     | 39.5                      | CCW             |
-| car3     | 57.9                      | CCW             |
-| car4     | 69.1                      | CW              |
-| car5     | 58.8                      | CW              |
-| car6     | 54.6                      | CCW             |
+| Car File | Turns within interval incl straights (%) | Turns within interval excl straights % | Track Direction |
+|----------|------------------------------------------|----------------------------------------|-----------------|
+| car1     | 73.51                                    | 41.62                                  | CW              |
+| car2     | 65.71                                    | 38.20                                  | CCW             |
+| car3     | 65.58                                    | 38.53                                  | CCW             |
+| car4     | 72.73                                    | 42.56                                  | CW              |
+| car5     | 66.36                                    | 35.60                                  | CW              |
+| car6     | 65.64                                    | 35.12                                  | CCW             |
 
