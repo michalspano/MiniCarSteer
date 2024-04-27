@@ -9,3 +9,6 @@ build
 .idea
 __pycache__
 venv
+./src/htmlcov
+.coverage
+.coveragerc

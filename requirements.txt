@@ -6,3 +6,5 @@ pandas
 joblib
 scikit-learn
 matplotlib
+coverage
+pytest-cov
