@@ -40,7 +40,7 @@ build-and-test:
     # Venv is needed to install requirement sin a virtual environment rather than globally
     # mesa-gl is needed for opencv to work
     # GCC is needed to install opencv
-    - apk add --no-cache python3.11 py3-pip py3-virtualenv mesa-gl build-base
+    - apk add --no-cache python3 py3-pip py3-virtualenv mesa-gl build-base
   script:
     # Create the virtual environment and call it venv
     - python3 -m venv venv
@@ -50,8 +50,12 @@ build-and-test:
     - pip install --upgrade pip
     # Install dependencies on the venv
     - pip install --no-cache-dir --no-deps -r requirements.txt
-    # Run the app
+    # Run the app. (needs to be done in src as the files contains other module paths)
     - cd src && python3 app.py
+    # Change back to project root
+    - cd ..
+    # Build the docker image of our app
+    - docker build --rm -f Dockerfile -t read_car_data .s
   # artifacts:
   #   paths:
 
