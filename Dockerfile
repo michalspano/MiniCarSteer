@@ -20,7 +20,7 @@ ENV PATH="/venv/bin:$PATH"
 RUN pip install --upgrade pip && \
     pip install --no-cache-dir --no-deps -r requirements.txt
 
-# Copy the contents of the `src` directoru
+# Copy the contents of the `src` directory
 COPY src src
 
 # Compile to `*.pyc`

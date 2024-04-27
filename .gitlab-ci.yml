@@ -22,15 +22,8 @@ before_script:
   - docker info
   - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
 
-  # Update and upgrade repository indices. Curl is later on used to download
-  # release-cli.
-  - apk update && apk add curl
-
-  # Install release-cli to make releases
-  - curl --location --output /usr/local/bin/release-cli "https://gitlab.com/api/v4/projects/gitlab-org%2Frelease-cli/packages/generic/release-cli/latest/release-cli-linux-amd64"
-
-  # Gie executable permissions to release-cli
-  - chmod +x /usr/local/bin/release-cli
+  # Get new repository package updates
+  - apk update
 
 # This section describes what shall be done to build and test the project.
 build-and-test:
@@ -42,8 +35,23 @@ build-and-test:
   only:
     - branches
   # Build the docker image using the Dockerfile in the root of the repository
+  before_script:
+    # Install python as it is needed to run our app and pip for downloading dependencies
+    # Venv is needed to install requirement sin a virtual environment rather than globally
+    # mesa-gl is needed for opencv to work
+    # GCC is needed to install opencv
+    - apk add --no-cache python3.11 py3-pip py3-virtualenv mesa-gl build-base
   script:
-    - echo "Build and test..."
+    # Create the virtual environment and call it venv
+    - python3 -m venv venv
+    # Enter venv
+    - . /venv/bin/activate
+    # Upgrade pip
+    - pip install --upgrade pip
+    # Install dependencies on the venv
+    - pip install --no-cache-dir --no-deps -r requirements.txt
+    # Run the app
+    - cd src && python3 app.py
   # artifacts:
   #   paths:
 
@@ -55,6 +63,15 @@ release_job:
   # The job is run on tag commits only
   only:
     - tags
+  before_script:
+    # curl is needed to download the release-cli
+    - apk add curl
+
+    # Install release-cli to make releases
+    - curl --location --output /usr/local/bin/release-cli "https://gitlab.com/api/v4/projects/gitlab-org%2Frelease-cli/packages/generic/release-cli/latest/release-cli-linux-amd64"
+
+    # Gie executable permissions to release-cli
+    - chmod +x /usr/local/bin/release-cli
   # Check that the tag commit name follows semantic versioning by checking it with the regex that makes sure 
   # the tag commit name is in the form of vX.Y.Z where X, Y, and Z are numbers
   # If the tag commit name follows semantic versioning build the using the provided version as name
