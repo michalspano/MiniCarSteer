@@ -36,7 +36,7 @@ build-and-test:
     - branches
   # Build the docker image using the Dockerfile in the root of the repository
   script:
-    - docker build --rm -f Dockerfile -t read_car_data .s
+    - docker build --rm -f Dockerfile -t read_car_data .
 
 # This section describes what shall be done to deploy artifacts from the project.
 release_job:
