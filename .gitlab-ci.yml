@@ -45,7 +45,7 @@ build-and-test:
     # Create the virtual environment and call it venv
     - python3 -m venv venv
     # Enter venv
-    - ./venv/bin/activate
+    - . ./venv/bin/activate
     # Upgrade pip
     - pip install --upgrade pip
     # Install dependencies on the venv
