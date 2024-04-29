@@ -33,11 +33,20 @@ import os, time
 import argparse
 
 # The following command-line arguments are supported:
+# (i) All LibCluon commands:
+# - See https://github.com/chalmers-revere/working-with-rec-files/
+# (ii) 'Custom' commands:
 # --turns-only (to count only turns or no)  [default=None]
 # --graph (compute a graph of the accuracy) [default=None]
+# Type --help to display the expected usage.
+
 parser = argparse.ArgumentParser(
         description='Calculate the steering angle from rec files.'
 )
+parser.add_argument('--cid', '-c', dest='cid', default=253, type=int,
+                    help='CID of the OD4Session to send and receive messages')
+parser.add_argument('--name', '-n', dest='name', default='img',
+                    help='name of the shared memory area to attach')
 parser.add_argument('--turns-only', '-t-o', dest='turns_only',
                     action='store_true', help='count only the turns')
 parser.add_argument('--graph', '-g', dest='gen_graph',
@@ -62,7 +71,7 @@ carData = {
 }
 
 # FIXME: extract the `OD4Session` configuration to a stand-alone module.
-session = OD4Session.OD4Session(cid=253)
+session = OD4Session.OD4Session(cid=args.cid)
 
 # Callback function for the onGroundSteeringRequest
 def onGroundSteeringRequest(msg, senderStamp, timeStamps):
@@ -121,7 +130,7 @@ session.registerMessageCallback(
 session.connect()
 
 # Location of shared memory
-name = "/tmp/img"
+name = f"/tmp/{args.name}"
 
 # Obtain the keys for the shared memory and semaphores.
 keySharedMemory = sysv_ipc.ftok(name, 1, True)
