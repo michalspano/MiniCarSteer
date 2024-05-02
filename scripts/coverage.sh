@@ -1,12 +1,11 @@
 #!/bin/bash
 
 # Enter src if the user is not already in src
-if ! [ "$(basename $(pwd))" = "src" ]
-  then # <-- new line, no ;
-    echo "This script must be called src"
+if ! [ "$(basename $(pwd))" = "src" ]; then
+    echo "This script must be called \`src\`! Exiting..."
     cd src
-else 
-  echo "In src..."
+else
+    echo "\`src\` found"
 fi
 
 # Check if `VIRTUAL_ENV` is empty; if so, activate the virtual environment
