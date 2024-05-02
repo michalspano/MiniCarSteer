@@ -4,48 +4,102 @@
 
 TODO: add missing sections about the project and the product.
 
-<!-- TODO: Using Docker instead? Revisit the feasibility of the current
-     instructions. -->
-
-# TODO: update the documentation for `Python` environment instead
-
 ## Prerequisites
 
 - [`git`][git]
-- A compatible `C++` [compiler][cpp-compiler] (e.g. `g++`)
-- [`CMake`][cmake]
 - [`Docker`][docker]
+- [`Python`][python] (for local development)
+- A **web browser** (preferably Chrome or Firefox)
 
 <!-- LINKS -->
 [git]: https://git-scm.com/downloads
-[cpp-compiler]: https://gcc.gnu.org/
-[cmake]: https://cmake.org/
 [docker]: https://docs.docker.com/get-docker/
+[python]: https://www.python.org/downloads/
 
-## Clone the Repository
+## Installation
+
+Initially, you have to `pull` the image:
+
+```sh
+# TODO: add the registry
+```
+
+Having installed the image, you can use a **shell script** to run it:
+```sh
+# Default command-line arguments
+./scripts/run.sh
+
+# See the usage, pass command-line arguments
+./scripts/run.sh --help
+```
+
+If you prefer to **build** the image locally, you can use this script instead:
+```sh
+./scripts/build.sh
+```
+
+## Local Development
+
+You're similarly encouraged to locally engage with the system. You may start
+cloning repository:
 
 ```sh
 git clone git@git.chalmers.se:courses/dit638/students/2024-group-09.git
+# TODO: add GiHub mirror
 ```
 
-## Build and Run the Program
+### Run the program
+
+It is preferred to create a `python`-based virtual environment, hence:
+```sh
+# 1.) From the root
+python3 -m venv venv
+
+# 2.) Activate the venv
+source ./venv/bin/activate
+
+# 3.) Install the dependencies inside venv
+pip3 install -r requirements.txt
+
+# 4.) Naviagate to the source directory
+cd src
+
+# 5.) Run the program
+./app.py
+# or python3 app.py
+
+# 6.) See program's usage
+./app.py --help
+```
+
+## Microservices
+
+Our program is combined with two other microservices, each responsible for a
+specific task. The microservices are:
+
+- [`OpenDLV-Vehicle-View`][opendlv-vehicle-view]
+- [`OpenDLV-Video-H264-Decoder`][opendlv-video-h264-decoder]
+
+<!-- LINKS -->
+[opendlv-vehicle-view]: https://github.com/chalmers-revere/opendlv-vehicle-view
+[opendlv-video-h264-decoder]: https://github.com/chalmers-revere/opendlv-video-h264-decoder
+
+Ensure that you have the required microservices installed and running.
+You can use the following **shell scripts** to start the microservices:
 
 ```sh
-# Make an out-of-tree build folder
-mkdir build
+# 1.) Start OpenDLV-Vehicle-View
+./scripts/init_opendlv.sh
 
-# Navigate to the build directory
-cd build
-
-# Create "Makefile" using the CMakeLists.txt that resides in the root
-cmake ..
-
-# Build the program using the generated make
-make
-
-# Run the program
-./helloworld <integer argument>
+# 2.) Start OpenDLV-Video-H264-Decoder
+./scripts/init_h264-decoder.sh
 ```
+
+Afterwards, navigate to your browser and open `localhost` (or it's equivalent)
+with the port `8081` and select a `.rec` file to instantiate the vehicle view.
+
+Please consult the [Chalmers ReVeRe](https://github.com/chalmers-revere) GitHub
+repositories for more information in terms of the microservices.
 
 # Workflow
 
@@ -86,3 +140,5 @@ git commit -m "#<Issue number> <Commit message>" -m "<Commit description>"
 - @arumeel
 - @spano
 - @omidk
+
+---
