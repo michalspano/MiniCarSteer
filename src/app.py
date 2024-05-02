@@ -17,10 +17,10 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 # sysv_ipc is needed to access the shared memory where the camera image is present.
-import sysv_ipc
 
-# numpy and cv2 are needed to access, modify, or display the pixels
-import numpy, cv2
+# numpy are needed to access, modify, or display the pixels
+import numpy
+import sysv_ipc
 
 # OD4Session is needed to send and receive messages
 from opendlv import OD4Session
@@ -143,11 +143,8 @@ mutex = sysv_ipc.Semaphore(keySemCondition)
 cond  = sysv_ipc.Semaphore(keySemCondition)
 
 # Relative paths to the models
-turn_detection_model               = "models/Hildegard.joblib"
-turn_detection_scaler              = "models/Hildegard-feature.joblib"
-steering_prediction_model          = "models/Tesla.joblib"
-steering_prediction_feature_scaler = "models/Tesla-feature.joblib"
-steering_prediction_target_scaler  = "models/Tesla-target.joblib"
+turn_detection_model               = "models/Bob.joblib"
+steering_prediction_model          = "models/Banana.joblib"
 
 # Relative path to the graph-generator module
 graph_gen_log = "/tmp/graph-log.csv"
@@ -188,7 +185,6 @@ while True:
         carData["accelerationY"],
         carData["angularVelocityZ"],
         carData["heading"],
-        turn_detection_scaler,
         turn_detection_model)
 
     # If turn detection detects turning we forward it to the 
@@ -199,8 +195,6 @@ while True:
                 carData["accelerationY"],
                 carData["angularVelocityZ"],
                 carData["heading"],
-                steering_prediction_feature_scaler,
-                steering_prediction_target_scaler,
                 steering_prediction_model
             )
     else:
