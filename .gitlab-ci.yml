@@ -1,20 +1,4 @@
-# Copyright (C) 2023  Christian Berger
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-# Which Docker image shall be used on the GitLab runner?
-# The image contains docker within docker on a alpine linux system
+# .gitlab-ci.yml
 image: docker:26.0.0-dind-alpine3.19
 
 # Details about how to connect to the Docker service to run this build.
@@ -33,28 +17,13 @@ stages:
   - build
   - deploy
 
-# Display information before we start the build.
-# Moreover, install curl which is used to download apps
-# Download release-cli which is used to make a release in the release_job
-# The release flag in the release_job, under the hood, makes use of the release-cli to create
-# executables. That is the reason we need release-cli with executable permissions.
-# Since we use alpine distro, we use apk and not apt
+# Executed before the script
 before_script:
   - docker info
   - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-  # Update and upgrade repository indices
-  - apk update
-  # Curl is later on used to download release-cli. Build-base contains g++ and necessary packages for compiling c++
-  # source files. Gzip is used by lcov, so it is merely a dependency
-  - apk add curl build-base gzip
-  # Install lcov. lcov is merely at a testing stage and is not in Alpine's released repository
-  # It exists on the testing repo, branch edge
-  - apk add lcov --repository=http://dl-cdn.alpinelinux.org/alpine/edge/testing
-  # install release-cli to make releases
-  - curl --location --output /usr/local/bin/release-cli "https://gitlab.com/api/v4/projects/gitlab-org%2Frelease-cli/packages/generic/release-cli/latest/release-cli-linux-amd64"
-  # Gie executable permissions to release-cli
-  - chmod +x /usr/local/bin/release-cli
 
+  # Get new repository package updates
+  - apk update
 
 # This section describes what shall be done to build and test the project.
 build-and-test:
@@ -67,31 +36,7 @@ build-and-test:
     - branches
   # Build the docker image using the Dockerfile in the root of the repository
   script:
-    # Make a build folder and navigate to it
-    - mkdir build; cd build
-    # Compile the source codes allowing for coverage using the flags mentioned. Allow for warnings too
-    - g++ -Wall --coverage -fprofile-arcs -ftest-coverage ../src/helloworld.cpp ../src/PrimeChecker.cpp -o mainBinary
-    - g++ -Wall --coverage -fprofile-arcs -ftest-coverage ../src/TestPrimeChecker.cpp ../src/PrimeChecker.cpp -o testBinary
-    # Run the binaries. This is needed to be able to create the coverage info
-    - ./mainBinary; ./testBinary
-    # Create the coverage.info file
-    - lcov -c -d . -o coverage.info 
-    # Filter library files and includes from the coverage file
-    - lcov -r coverage.info '/usr/include/*' -o coverage-filtered.info
-    # List what the files contains (in the filtered version)
-    - lcov -l coverage-filtered.info
-    # Geerate a folder called res that contains the HTML file for each class
-    # and coverage info. Apply the filtered coverage file to the generation.
-    # We will save this as an artifact later on.
-    - genhtml -o res coverage-filtered.info
-    # Navigate to the root of the project
-    - cd ..
-    # Create docker image to make sure tha app can be built
-    - docker build -f Dockerfile .
-  artifacts:
-    paths:
-      # Save the HTML content containing the coverage info as an artifact
-      - ./build/res
+    - docker build --rm -f Dockerfile -t read_car_data .
 
 # This section describes what shall be done to deploy artifacts from the project.
 release_job:
@@ -101,6 +46,15 @@ release_job:
   # The job is run on tag commits only
   only:
     - tags
+  before_script:
+    # curl is needed to download the release-cli
+    - apk add curl
+
+    # Install release-cli to make releases
+    - curl --location --output /usr/local/bin/release-cli "https://gitlab.com/api/v4/projects/gitlab-org%2Frelease-cli/packages/generic/release-cli/latest/release-cli-linux-amd64"
+
+    # Gie executable permissions to release-cli
+    - chmod +x /usr/local/bin/release-cli
   # Check that the tag commit name follows semantic versioning by checking it with the regex that makes sure 
   # the tag commit name is in the form of vX.Y.Z where X, Y, and Z are numbers
   # If the tag commit name follows semantic versioning build the using the provided version as name

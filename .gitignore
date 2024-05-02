@@ -7,3 +7,8 @@ build
 # Exclude IDE clutter
 .vscode
 .idea
+__pycache__
+venv
+./src/htmlcov
+.coverage
+.coveragerc

@@ -7,6 +7,8 @@ TODO: add missing sections about the project and the product.
 <!-- TODO: Using Docker instead? Revisit the feasibility of the current
      instructions. -->
 
+# TODO: update the documentation for `Python` environment instead
+
 ## Prerequisites
 
 - [`git`][git]

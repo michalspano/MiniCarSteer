@@ -1,0 +1,9 @@
+sysv_ipc
+numpy
+protobuf
+pandas
+joblib
+scikit-learn
+matplotlib
+coverage
+pytest-cov
