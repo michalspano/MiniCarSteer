@@ -10,7 +10,7 @@ variables:
 # We have docker in docker service, meaning that a container that has docker installed on it
 services:
   - name: registry.git.chalmers.se/courses/dit638/students/2024-group-09/docker:26.0.0-dind
- alias: docker
+    alias: docker
 
 # We have two stages: build stage which is used to build and test the application
 # and deploy which is used to deploy the application's docker image and make a release
