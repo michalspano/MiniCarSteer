@@ -138,9 +138,12 @@ shm   = sysv_ipc.SharedMemory(keySharedMemory)
 mutex = sysv_ipc.Semaphore(keySemCondition)
 cond  = sysv_ipc.Semaphore(keySemCondition)
 
-# Relative paths to the models
-turn_detection_model      = "models/Hildegard.joblib"
-steering_prediction_model = "models/Tesla.joblib"
+# Relative paths to the models (including scalers)
+turn_detection_model               = "models/Hildegard.joblib"
+turn_detection_scaler              = "models/Hildegard-feature.joblib"
+steering_prediction_model          = "models/Tesla.joblib"
+steering_prediction_feature_scaler = "models/Tesla-feature.joblib"
+steering_prediction_target_scaler  = "models/Tesla-target.joblib"
 
 # Relative path to the graph-generator module
 graph_gen_log = "/tmp/graph-log.csv"
