@@ -72,6 +72,35 @@ cd src
 ./app.py --help
 ```
 
+### Miscellaneous
+
+There's some additional functionality that you can use:
+
+```sh
+# 1.) Run the application with `--graph` flag
+./app.py --graph
+# ./app.py -g
+# This will create a log file with the parameters.
+
+# 2.) Compute a performance metric
+# Generates a static PNG file with the performance metric in the current
+# directory.
+./src/tools/graph-generator/app.py
+```
+
+Additionally, more related to the development process, you can use the
+following:
+
+```sh
+# 1.) Run the tests
+# TODO: add instructions
+
+# 2.) Run the coverage report generation
+# Generate an HTML-based report in the current directory.
+cd src
+../scripts/coverage.sh
+```
+
 ## Microservices
 
 Our program is combined with two other microservices, each responsible for a
