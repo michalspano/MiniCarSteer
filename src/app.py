@@ -184,6 +184,7 @@ while True:
         carData["accelerationY"],
         carData["angularVelocityZ"],
         carData["heading"],
+        turn_detection_scaler,
         turn_detection_model
     )
 
@@ -195,6 +196,8 @@ while True:
                 carData["accelerationY"],
                 carData["angularVelocityZ"],
                 carData["heading"],
+                steering_prediction_feature_scaler,
+                steering_prediction_target_scaler,
                 steering_prediction_model
         )
     else:
