@@ -139,9 +139,8 @@ mutex = sysv_ipc.Semaphore(keySemCondition)
 cond  = sysv_ipc.Semaphore(keySemCondition)
 
 # Relative paths to the models
-# TODO: rename the models to something more meaningful.
-turn_detection_model      = "models/Bob.joblib"
-steering_prediction_model = "models/Banana.joblib"
+turn_detection_model      = "models/Hildegard.joblib"
+steering_prediction_model = "models/Tesla.joblib"
 
 # Relative path to the graph-generator module
 graph_gen_log = "/tmp/graph-log.csv"
