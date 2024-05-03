@@ -21,7 +21,8 @@ TODO: add missing sections about the project and the product.
 Initially, you have to `pull` the image:
 
 ```sh
-# TODO: add the registry
+# TODO: replace the tag with a 'stable' tag (or add support for :latest)
+docker pull registry.git.chalmers.se/courses/dit638/students/2024-group-09:<TAG>
 ```
 
 Having installed the image, you can use a **shell script** to run it:
