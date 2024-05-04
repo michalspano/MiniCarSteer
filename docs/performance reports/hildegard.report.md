@@ -5,7 +5,7 @@
 - **Target Scaler Identifier**: `Hildegard-target.joblib`
 
 ### Used dataset
-car.rec,car2.rec,car3.rec,car4.rec,car5.rec,car5.rec
+car.rec,car2.rec,car3.rec,car4.rec,car5.rec,car6.rec
 
 ### Targets
 This model is a wheel state binary classification model and has the responsibility
@@ -30,10 +30,11 @@ This feature has previously shown a linear relationship between its value and st
 
 | Car File | Correctly predicted wheel states (%) | Track Direction |
 |----------|--------------------------------------|-----------------|
-| car1     | 87.89                                | CW              |
-| car2     | 80.41                                | CCW             |
-| car3     | 82.60                                | CCW             |
-| car4     | 87.41                                | CCW             |
-| car5     | 84.27                                | CCW             |
-| car6     | 84.81                                | CCW             |
+| car1     | 97.10                                | CW              |
+| car2     | 87.88                                | CCW             |
+| car3     | 89.46                                | CCW             |
+| car4     | 96.84                                | CW              |
+| car5     | 89.34                                | CW              |
+| car6     | 93.56                                | CCW             |
 
+Average performance: 92,36 (%)

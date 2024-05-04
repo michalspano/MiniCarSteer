@@ -5,7 +5,7 @@
 - **Target Scaler Identifier**: `Tesla-target.joblib`
 
 ### Used dataset
-car.rec, car2.rec,car3.rec,car4.rec,car5.rec,car5.rec
+car.rec, car2.rec,car3.rec,car4.rec,car5.rec,car6.rec
 
 ### Features used and reasoning for use
 #### Acceleration Y axis
@@ -23,12 +23,14 @@ This feature has previously shown a linear relationship between its value and st
 ### (Live) Real-time testing results 
 *(including out-of-sample data)*
 
-| Car File | Turns within interval incl straights (%) | Turns within interval excl straights % | Track Direction |
-|----------|------------------------------------------|----------------------------------------|-----------------|
-| car1     | 73.51                                    | 41.62                                  | CW              |
-| car2     | 65.71                                    | 38.20                                  | CCW             |
-| car3     | 65.58                                    | 38.53                                  | CCW             |
-| car4     | 72.73                                    | 42.56                                  | CW              |
-| car5     | 66.36                                    | 35.60                                  | CW              |
-| car6     | 65.64                                    | 35.12                                  | CCW             |
+| Car File | Turns within interval excl straights % | Track Direction |
+|----------|----------------------------------------|-----------------|
+| car1     | 63.85                                  | CW              |
+| car2     | 33.93                                  | CCW             |
+| car3     | 51.52                                  | CCW             |
+| car4     | 64.23                                  | CW              |
+| car5     | 51.27                                  | CW              |
+| car6     | 51.03                                  | CCW             |
 
+
+Average performance: 52.64 (%)
