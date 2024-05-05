@@ -45,15 +45,6 @@ release_job:
   # The job is run on tag commits only
   only:
     - tags
-  before_script:
-    # curl is needed to download the release-cli
-    - apk add curl
-
-    # Install release-cli to make releases
-    - curl --location --output /usr/local/bin/release-cli "https://gitlab.com/api/v4/projects/gitlab-org%2Frelease-cli/packages/generic/release-cli/latest/release-cli-linux-amd64"
-
-    # Gie executable permissions to release-cli
-    - chmod +x /usr/local/bin/release-cli
   # Check that the tag commit name follows semantic versioning by checking it with the regex that makes sure 
   # the tag commit name is in the form of vX.Y.Z where X, Y, and Z are numbers
   # If the tag commit name follows semantic versioning build the using the provided version as name
@@ -67,15 +58,25 @@ release_job:
       # support any number and not just 0 through 9 (if [0-9] is used).
       if echo "$CI_COMMIT_TAG" | grep -E '^v\d+\.\d+\.\d+$' > /dev/null; then
         echo "Version is valid."
-        docker info
-        docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-        docker build -f Dockerfile -t "$CI_REGISTRY_IMAGE":"$CI_COMMIT_TAG" .
-        docker push "$CI_REGISTRY_IMAGE":"$CI_COMMIT_TAG"
       else
         echo "Version is invalid."
         echo "$CI_COMMIT_TAG"
         exit 1
       fi
+    - |
+      # curl is needed to download the release-cli
+      apk add curl
+
+      # Install release-cli to make releases
+      curl --location --output /usr/local/bin/release-cli "https://gitlab.com/api/v4/projects/gitlab-org%2Frelease-cli/packages/generic/release-cli/latest/release-cli-linux-amd64"
+
+      # Provide executable permissions to release-cli
+      chmod +x /usr/local/bin/release-cli
+
+    # Build the docker image, push the produced image to the image registry
+    - docker build -f Dockerfile -t "$CI_REGISTRY_IMAGE":"$CI_COMMIT_TAG" .
+    - docker push "$CI_REGISTRY_IMAGE":"$CI_COMMIT_TAG"
+
   # Make a release that has the version as its name and description
   release:
     tag_name: '$CI_COMMIT_TAG'
