@@ -16,11 +16,9 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-# sysv_ipc is needed to access the shared memory where the camera image is present.
-
-# numpy are needed to access, modify, or display the pixels
-import numpy
-import sysv_ipc
+# Required packages
+import os, argparse
+import numpy, sysv_ipc # to access the shared memory
 
 # OD4Session is needed to send and receive messages
 from opendlv import OD4Session
@@ -28,9 +26,6 @@ from opendlv import OD4Session
 # Import the OpenDLV Standard Message Set.
 from opendlv import opendlv_standard_message_set_v0_9_6_pb2
 from predict import predict_steering_angle,predict_turning
-
-import os, time
-import argparse
 
 # The following command-line arguments are supported:
 # (i) All LibCluon commands:
@@ -41,7 +36,8 @@ import argparse
 # Type --help to display the expected usage.
 
 parser = argparse.ArgumentParser(
-        description='Calculate the steering angle from rec files.'
+        description='Calculate the steering angle from rec files with ML, based'
+                    + ' on the Chalmers ReVeRe Project.'
 )
 parser.add_argument('--cid', '-c', dest='cid', default=253, type=int,
                     help='CID of the OD4Session to send and receive messages')
@@ -142,9 +138,12 @@ shm   = sysv_ipc.SharedMemory(keySharedMemory)
 mutex = sysv_ipc.Semaphore(keySemCondition)
 cond  = sysv_ipc.Semaphore(keySemCondition)
 
-# Relative paths to the models
-turn_detection_model               = "models/Bob.joblib"
-steering_prediction_model          = "models/Banana.joblib"
+# Relative paths to the models (including scalers)
+turn_detection_model               = "models/Hildegard.joblib"
+turn_detection_scaler              = "models/Hildegard-feature.joblib"
+steering_prediction_model          = "models/Tesla.joblib"
+steering_prediction_feature_scaler = "models/Tesla-feature.joblib"
+steering_prediction_target_scaler  = "models/Tesla-target.joblib"
 
 # Relative path to the graph-generator module
 graph_gen_log = "/tmp/graph-log.csv"
@@ -180,12 +179,14 @@ while True:
     predicted_groundSteeringRequest = 0
 
     # Predict the steering angle using RF model and get the absolute value
-    is_turning = predict_turning(            
+    is_turning = predict_turning(
         carData["magneticFieldZ"],
         carData["accelerationY"],
         carData["angularVelocityZ"],
         carData["heading"],
-        turn_detection_model)
+        turn_detection_scaler,
+        turn_detection_model
+    )
 
     # If turn detection detects turning we forward it to the 
     # steering prediction model
@@ -195,8 +196,10 @@ while True:
                 carData["accelerationY"],
                 carData["angularVelocityZ"],
                 carData["heading"],
+                steering_prediction_feature_scaler,
+                steering_prediction_target_scaler,
                 steering_prediction_model
-            )
+        )
     else:
         predicted_groundSteeringRequest = 0
     
