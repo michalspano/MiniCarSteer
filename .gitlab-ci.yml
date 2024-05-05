@@ -67,6 +67,8 @@ release_job:
       # support any number and not just 0 through 9 (if [0-9] is used).
       if echo "$CI_COMMIT_TAG" | grep -E '^v\d+\.\d+\.\d+$' > /dev/null; then
         echo "Version is valid."
+        docker info
+        docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
         docker build -f Dockerfile -t "$CI_REGISTRY_IMAGE":"$CI_COMMIT_TAG" .
         docker push "$CI_REGISTRY_IMAGE":"$CI_COMMIT_TAG"
       else
