@@ -20,6 +20,13 @@
 import os, argparse
 import numpy, sysv_ipc # to access the shared memory
 
+#  Check if there is a graphical user interface available
+if 'DISPLAY' in os.environ:
+    import tkinter as tk
+    GUI_AVAILABLE = True
+else:
+    GUI_AVAILABLE = False
+
 # OD4Session is needed to send and receive messages
 from opendlv import OD4Session
 
@@ -33,6 +40,7 @@ from predict import predict_steering_angle,predict_turning
 # (ii) 'Custom' commands:
 # --turns-only (to count only turns or no)  [default=None]
 # --graph (compute a graph of the accuracy) [default=None]
+# --verbose (to show a debug window) [default=None]
 # Type --help to display the expected usage.
 
 parser = argparse.ArgumentParser(
@@ -47,6 +55,8 @@ parser.add_argument('--turns-only', '-t-o', dest='turns_only',
                     action='store_true', help='count only the turns')
 parser.add_argument('--graph', '-g', dest='gen_graph',
                     action='store_true', help='generate a graph')
+parser.add_argument('--verbose', '-v', dest='verbose',
+                    action='store_true', help='enable debug window')
 
 # Process the arguments
 args = parser.parse_args()
@@ -155,6 +165,15 @@ if args.gen_graph:
 
 print("Configuration successful, waiting for an input stream...")
 
+# Open a debug window (only supported in `verbose` mode if there is a GUI available)
+if args.verbose and GUI_AVAILABLE:
+    root = tk.Tk()
+    root.title("Debug window")
+    verbose_text = tk.Text(root)
+    verbose_text.pack()
+    verbose_text.insert(tk.END, "Verbose mode is enabled.")
+    root.update()  # Update the window
+
 # Main loop to process the next image frame coming in.
 # FIXME: many of these computations can be extracted to stand-alone functions.
 while True:
@@ -211,10 +230,17 @@ while True:
             row = f"{timestamp};{predicted_groundSteeringRequest};{carData['groundSteeringRequest']}\n"
             f.write(row)
 
-    """
-    # Display the current timestamp and predicted steering angle
-    print("group_9; ", timestamp_microseconds, "; ", predicted_groundSteeringRequest)
-    """
+    # Show the training features (magnetic field Z axis, acceleration Y axis, angular velocity Z axis and heading)
+    # with the current timestamp in the debug window
+    if args.verbose and GUI_AVAILABLE:
+        verbose_text.insert(tk.END, "Timestamp:" + str(timestamp_ms) + 
+                            "; Magnetic field Z: " + str(carData["magneticFieldZ"]) + 
+                            "; Acceleration Y: " + str(carData["accelerationY"]) +
+                            "; Angular Velocity Z: " + str(carData["angularVelocityZ"]) + 
+                            "; Heading: " + str(carData["heading"]) + "\n" + "\n")
+        root.update()  # Update the window
+        verbose_text.see(tk.END) # Scroll to the bottom
+        
 
     # Get the absolute value of the predicted steering angle
     predicted_groundSteeringRequest = abs(predicted_groundSteeringRequest)
@@ -228,13 +254,17 @@ while True:
 
     # Release lock
     mutex.release()
+
+    # Display the current timestamp and predicted steering angle
+    print("group_9; ", timestamp_ms, "; ", predicted_groundSteeringRequest)
     
+    '''
     # Log the values
     print("Predicted groundSteeringRequest: ", predicted_groundSteeringRequest)
     print("Actual groundSteeringRequest: ", carData["groundSteeringRequest"])
     print("Turns within OK interval (%)", carData["steeringAngleAccuracy"])
     print("Wheel state accuracy (%): ", carData["wheelStateAccuracy"])
-
+    '''
     # Don't compute score on straights if turns only flag is active
     if carData["groundSteeringRequest"] == 0 and args.turns_only:
         continue
