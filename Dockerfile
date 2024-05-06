@@ -17,6 +17,8 @@ RUN pip wheel --no-cache-dir --no-deps --wheel-dir /app/wheels -r requirements.t
 
 # 2.) Runtime stage with python 3.9 debian (self-hosted on Chalmers GitLab)
 FROM registry.git.chalmers.se/courses/dit638/students/2024-group-09/python:3.9-slim
+# Install Tkinter
+RUN apt-get update && apt-get install -y python3-tk
 # Cd into /app
 WORKDIR /app
 # Copy the built wheels from the builder to the /app/wheels in runtime stage

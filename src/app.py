@@ -19,6 +19,7 @@
 # Required packages
 import os, argparse
 import numpy, sysv_ipc # to access the shared memory
+import tkinter as tk # to open debug window
 
 # OD4Session is needed to send and receive messages
 from opendlv import OD4Session
@@ -47,6 +48,8 @@ parser.add_argument('--turns-only', '-t-o', dest='turns_only',
                     action='store_true', help='count only the turns')
 parser.add_argument('--graph', '-g', dest='gen_graph',
                     action='store_true', help='generate a graph')
+parser.add_argument('--verbose', '-v', dest='verbose',
+                    action='store_true', help='open debug window')
 
 # Process the arguments
 args = parser.parse_args()
@@ -155,6 +158,14 @@ if args.gen_graph:
 
 print("Configuration successful, waiting for an input stream...")
 
+if args.verbose:
+    root = tk.Tk()
+    root.title("Debug window")
+    verbose_text = tk.Text(root)
+    verbose_text.pack()
+    verbose_text.insert(tk.END, "Verbose mode is enabled.")
+    root.update()  # Update the window
+
 # Main loop to process the next image frame coming in.
 # FIXME: many of these computations can be extracted to stand-alone functions.
 while True:
@@ -211,10 +222,13 @@ while True:
             row = f"{timestamp};{predicted_groundSteeringRequest};{carData['groundSteeringRequest']}\n"
             f.write(row)
 
-    """
-    # Display the current timestamp and predicted steering angle
-    print("group_9; ", timestamp_microseconds, "; ", predicted_groundSteeringRequest)
-    """
+    if args.verbose:
+        verbose_text.insert(tk.END, "group_9; " + str(timestamp_ms) + "; " + str(predicted_groundSteeringRequest) + "\n")
+        root.update()  # Update the window
+
+        # Display the current timestamp and predicted steering angle
+        #print("group_9; ", timestamp_ms, "; ", predicted_groundSteeringRequest)
+        
 
     # Get the absolute value of the predicted steering angle
     predicted_groundSteeringRequest = abs(predicted_groundSteeringRequest)
