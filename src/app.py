@@ -223,11 +223,9 @@ while True:
             f.write(row)
 
     if args.verbose:
-        verbose_text.insert(tk.END, "group_9; " + str(timestamp_ms) + "; " + str(predicted_groundSteeringRequest) + "\n")
+        verbose_text.insert(tk.END, "Timestamp:" + str(timestamp_ms) + "; Magnetic field Z: " + str(carData["magneticFieldZ"]) + "; Acceleration Y: " + str(carData["accelerationY"]) + "; Angular Velocity Z: " + str(carData["angularVelocityZ"]) + "; Heading: " + str(carData["heading"]) + "\n" + "\n")
         root.update()  # Update the window
 
-        # Display the current timestamp and predicted steering angle
-        #print("group_9; ", timestamp_ms, "; ", predicted_groundSteeringRequest)
         
 
     # Get the absolute value of the predicted steering angle
@@ -242,13 +240,17 @@ while True:
 
     # Release lock
     mutex.release()
+
+    # Display the current timestamp and predicted steering angle
+    print("group_9; ", timestamp_ms, "; ", predicted_groundSteeringRequest)
     
+    '''
     # Log the values
     print("Predicted groundSteeringRequest: ", predicted_groundSteeringRequest)
     print("Actual groundSteeringRequest: ", carData["groundSteeringRequest"])
     print("Turns within OK interval (%)", carData["steeringAngleAccuracy"])
     print("Wheel state accuracy (%): ", carData["wheelStateAccuracy"])
-
+    '''
     # Don't compute score on straights if turns only flag is active
     if carData["groundSteeringRequest"] == 0 and args.turns_only:
         continue
