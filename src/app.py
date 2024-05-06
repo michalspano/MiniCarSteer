@@ -19,7 +19,12 @@
 # Required packages
 import os, argparse
 import numpy, sysv_ipc # to access the shared memory
-import tkinter as tk # to open debug window
+
+if 'DISPLAY' in os.environ:
+    import tkinter as tk
+    GUI_AVAILABLE = True
+else:
+    GUI_AVAILABLE = False
 
 # OD4Session is needed to send and receive messages
 from opendlv import OD4Session
@@ -34,6 +39,7 @@ from predict import predict_steering_angle,predict_turning
 # (ii) 'Custom' commands:
 # --turns-only (to count only turns or no)  [default=None]
 # --graph (compute a graph of the accuracy) [default=None]
+# --verbose (to show a debug window) [default=None]
 # Type --help to display the expected usage.
 
 parser = argparse.ArgumentParser(
@@ -158,7 +164,7 @@ if args.gen_graph:
 
 print("Configuration successful, waiting for an input stream...")
 
-if args.verbose:
+if args.verbose and GUI_AVAILABLE:
     root = tk.Tk()
     root.title("Debug window")
     verbose_text = tk.Text(root)
@@ -222,10 +228,9 @@ while True:
             row = f"{timestamp};{predicted_groundSteeringRequest};{carData['groundSteeringRequest']}\n"
             f.write(row)
 
-    if args.verbose:
+    if args.verbose and GUI_AVAILABLE:
         verbose_text.insert(tk.END, "Timestamp:" + str(timestamp_ms) + "; Magnetic field Z: " + str(carData["magneticFieldZ"]) + "; Acceleration Y: " + str(carData["accelerationY"]) + "; Angular Velocity Z: " + str(carData["angularVelocityZ"]) + "; Heading: " + str(carData["heading"]) + "\n" + "\n")
         root.update()  # Update the window
-
         
 
     # Get the absolute value of the predicted steering angle
