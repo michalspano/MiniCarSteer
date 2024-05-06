@@ -233,7 +233,11 @@ while True:
     # Show the training features (magnetic field Z axis, acceleration Y axis, angular velocity Z axis and heading)
     # with the current timestamp in the debug window
     if args.verbose and GUI_AVAILABLE:
-        verbose_text.insert(tk.END, "Timestamp:" + str(timestamp_ms) + "; Magnetic field Z: " + str(carData["magneticFieldZ"]) + "; Acceleration Y: " + str(carData["accelerationY"]) + "; Angular Velocity Z: " + str(carData["angularVelocityZ"]) + "; Heading: " + str(carData["heading"]) + "\n" + "\n")
+        verbose_text.insert(tk.END, "Timestamp:" + str(timestamp_ms) + 
+                            "; Magnetic field Z: " + str(carData["magneticFieldZ"]) + 
+                            "; Acceleration Y: " + str(carData["accelerationY"]) +
+                            "; Angular Velocity Z: " + str(carData["angularVelocityZ"]) + 
+                            "; Heading: " + str(carData["heading"]) + "\n" + "\n")
         root.update()  # Update the window
         verbose_text.see(tk.END) # Scroll to the bottom
         
