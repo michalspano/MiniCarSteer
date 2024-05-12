@@ -242,12 +242,15 @@ while True:
         verbose_text.see(tk.END) # Scroll to the bottom
     
 
+    # Default
+    lower_bound = carData["groundSteeringRequest"] * 0.75
+    upper_bound = carData["groundSteeringRequest"] * 1.25
+
+    # Negative
     if carData["groundSteeringRequest"] < 0:
         lower_bound = carData["groundSteeringRequest"] * 1.25
         upper_bound = carData["groundSteeringRequest"] * 0.75
-    elif carData["groundSteeringRequest"] > 0:
-        lower_bound = carData["groundSteeringRequest"] * 0.75
-        upper_bound = carData["groundSteeringRequest"] * 1.25
+
 
     # Release lock
     mutex.release()
