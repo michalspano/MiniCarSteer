@@ -240,17 +240,14 @@ while True:
                             "; Heading: " + str(carData["heading"]) + "\n" + "\n")
         root.update()  # Update the window
         verbose_text.see(tk.END) # Scroll to the bottom
-        
+    
 
-    # Get the absolute value of the predicted steering angle
-    predicted_groundSteeringRequest = abs(predicted_groundSteeringRequest)
-
-    # Get the absolute value of the actual current wheel angle
-    carData["groundSteeringRequest"] = abs(carData["groundSteeringRequest"])
-
-    # Calculate upper and lower bounds for the intervals
-    lower_bound = carData["groundSteeringRequest"] * 0.75
-    upper_bound = carData["groundSteeringRequest"] * 1.25
+    if carData["groundSteeringRequest"] < 0:
+        lower_bound = carData["groundSteeringRequest"] * 1.25
+        upper_bound = carData["groundSteeringRequest"] * 0.75
+    elif carData["groundSteeringRequest"] > 0:
+        lower_bound = carData["groundSteeringRequest"] * 0.75
+        upper_bound = carData["groundSteeringRequest"] * 1.25
 
     # Release lock
     mutex.release()
