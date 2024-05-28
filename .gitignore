@@ -1,0 +1,22 @@
+# Exclude macOS binary
+*.DS_Store
+
+# Exclude out-of-tree build
+build
+
+# Exclude IDE clutter
+.vscode
+.idea
+__pycache__
+venv
+
+# Coverage report
+**coverage_report**
+.coverage
+.coveragerc
+
+# Remove rec files from VCS
+*.rec
+
+# buildx output
+export

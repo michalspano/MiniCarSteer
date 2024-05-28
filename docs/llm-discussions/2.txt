@@ -1,0 +1,110 @@
+gpt4-turbo
+Hey I need to build docker image. 
+
+Requirements:
+sysv_ipc
+numpy
+protobuf
+pandas
+joblib
+scikit-learn
+matplotlib
+coverage
+pytest-cov
+
+Here is my folder structure:
+[starkbamse@starkbamse-laptop 2024-group-09]$ ls
+car1.rec  car3.rec  car5.rec  CODE_OF_CONDUCT.md  docs     python-ml  requirements.txt  src
+car2.rec  car4.rec  car6.rec  Dockerfile          LICENSE  README.md  scripts
+[starkbamse@starkbamse-laptop 2024-group-09]$ cd src
+[starkbamse@starkbamse-laptop src]$ ls
+app.py    gym                  models   predict.py  tesla.report.md  toyota.report.md
+datasets  hildegard.report.md  opendlv  README.md   tools
+[starkbamse@starkbamse-laptop src]$ 
+
+The app.py is the main entry point. Everything in src is required to run the app. Create a docker image. it needs to be light. and small
+
+To create a lightweight Docker image for your Python application, it's a good idea to use a base image that is minimal but still provides the necessary Python environment. For this, we can choose the Alpine versions of the Python images which are significantly smaller in size compared to other distributions.
+
+Below, I will provide you with a Dockerfile that sets up your environment and includes all necessary dependencies as specified in your requirements.
+
+**Dockerfile:**
+```Dockerfile
+# Use an official Python runtime as a parent image with Alpine for smaller footprint
+FROM python:3.9-alpine
+
+# Set the working directory in the container to /app
+WORKDIR /app
+
+# Copy only the necessary files
+COPY src/ /app/
+COPY requirements.txt /app/
+
+# Install any needed packages specified in requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Run the app.py script when the container launches
+CMD ["python", "app.py"]
+```
+
+**requirements.txt:**
+
+You mentioned certain Python libraries in your requirements. Here's how you might write your `requirements.txt` based on your requirements. Note the inclusion of `sysv_ipc`, which will require additional system packages to be installed since it relies on System V IPC primitives:
+
+```plaintext
+numpy
+protobuf
+pandas
+joblib
+scikit-learn
+matplotlib
+coverage
+pytest-cov
+sysv_ipc
+```
+
+Since the `sysv_ipc` library may have issues installing on Alpine due to the lack of certain libraries and headers, you might need to additionally install the required system dependencies. Update your Dockerfile to install these prerequisites:
+
+**Updated Dockerfile with sysv_ipc dependencies:**
+```Dockerfile
+# Use an official Python runtime as a parent image with Alpine for smaller footprint
+FROM python:3.9-alpine
+
+# Install system dependencies required for sysv_ipc
+RUN apk add --no-cache gcc musl-dev linux-headers
+
+# Set the working directory in the container
+WORKDIR /app
+
+# Copy the current directory contents into the container at /app
+COPY src/ /app/
+COPY requirements.txt /app/
+
+# Install any needed packages specified in requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Make port 80 available to the world outside this container
+EXPOSE 80
+
+# Define environment variable
+ENV NAME World
+
+# Run app.py when the container launches
+CMD ["python", "app.py"]
+```
+
+**Building and Running Your Docker Image:**
+
+1. Create the `Dockerfile` and `requirements.txt` in the root of your project directory.
+
+2. Build your Docker image:
+   ```bash
+   docker build -t my-python-app .
+   ```
+
+3. Run your Docker container:
+   ```bash
+   docker run -p 4000:80 my-python-app
+   ```
+
+This setup ensures you have a lightweight container that includes all necessary dependencies. Adapt the Docker settings such as port mapping according to the specific needs of your application.

@@ -1,0 +1,221 @@
+# .gitlab-ci.yml - Chalmers GitLab Pipeline LLM: 28.txt, 27.txt, 26.txt, 25.txt
+# Authors: Arumeel Kaisa, Khodaparast Omid, Spano Michal, Säfström Alexander
+
+
+image: registry.git.chalmers.se/courses/dit638/students/docker/docker:19.03.3
+
+
+# Details about how to connect to the Docker service to run this build.
+variables:
+  DOCKER_HOST: tcp://docker:2375
+  DOCKER_TLS_CERTDIR: ""
+
+
+# Services are other images run as their own container on the pipeline
+# We have docker in docker service, meaning that a container that has docker installed on it
+services:
+  - name: registry.git.chalmers.se/courses/dit638/students/docker/docker:19.03.3-dind
+    alias: docker
+
+
+# We have three stages: build stage which is used to build the application image
+# and deploy which is used to deploy the application's docker image on the repo's container registry and make a release
+stages:
+  - build
+  - deploy
+  - test
+
+
+# Install buildx for multi-platform builds
+before_script:
+  - apk add --no-cache curl                      # Install curl
+  - mkdir -p ~/.docker/cli-plugins/              # Create a directory for docker plugins
+  - curl -L "https://github.com/docker/buildx/releases/download/v0.8.2/buildx-v0.8.2.linux-amd64" -o ~/.docker/cli-plugins/docker-buildx
+  - chmod +x ~/.docker/cli-plugins/docker-buildx # Make the plugin executable
+  - export DOCKER_CLI_EXPERIMENTAL=enabled       # Enable experimental features
+  - docker buildx version                        # Check the version of buildx
+  - docker pull moby/buildkit:v0.10.2            # We need buildkit for multi-platform builds
+  - docker tag moby/buildkit:v0.10.2 moby/buildkit:buildx-stable-1 # Tag the buildkit image
+  - docker buildx create --use                   # Create a new builder instance
+  - docker buildx inspect --bootstrap            # Bootstrap the builder instance
+
+
+# Build the docker image around the project. To be able to test the project,
+# it needs to be able to build the image.
+build:
+  tags:
+    - docker-build
+  stage: build
+  only:
+    - branches # Only run this job on branches
+  script:
+    # Build for multiple platforms but don't push
+    - docker buildx build --platform linux/amd64,linux/arm/v7 -t read_car_data:latest .
+
+
+unit_test:
+  tags:
+    - docker-build
+  stage: test
+  needs:
+    - job: build
+  only:
+    - branches
+  script:
+    # Install pytest
+    - |
+      apk update && apk add --no-cache python3 py3-pip
+      pip3 install pytest pytest-cov
+      pytest --version # verify the version
+
+    # Test the source code with pytest
+    - pytest
+
+    # Display coverage to the console (used for the dynamic badge).
+    - pytest --cov=src --cov-config=.coveragerc
+
+    # Generate HTML coverage report (not using `coverage.sh` to avoid the use
+    # of a VENV).
+    - pytest --cov=src --cov-config=.coveragerc --cov-report=html:coverage_report
+  # Used for the coverage badge
+  coverage: '/TOTAL.*\s+(\d+\%)/'
+
+  # Save the html report as artifact
+  artifacts:
+    paths:
+      # Include the coverage report (HTML) as an artifact for the user
+      - coverage_report/*
+
+
+release_job:
+  tags:
+    - docker-build
+  stage: deploy
+  only:
+    - tags # Only run this job on tags
+  script:
+  # Check that the tag commit name follows semantic versioning by checking it with the regex that makes sure 
+  # the tag commit name is in the form of vX.Y.Z where X, Y, and Z are numbers
+  # If the tag commit name follows semantic versioning build the using the provided version as name
+  # If not, write error message and exit with code 1 to indicate failure
+  - | 
+    # Verify the format of the tag commit name.
+    # `\d+` to denote a digit is not part of basic regular expressions. We
+    # pass the `-E` flag to `grep` to parse an extended regular expression
+    # that supports `\d+`. This makes the solution more flexible and can
+    # support any number and not just 0 through 9 (if [0-9] is used).
+    if echo "$CI_COMMIT_TAG" | grep -E '^v\d+\.\d+\.\d+$' > /dev/null; then
+      echo "Version is valid."
+    else
+      echo "Version is invalid."
+      echo "$CI_COMMIT_TAG"
+      exit 1
+    fi
+  - |
+    # Download the release-cli for releasing the image
+    curl --location --output /usr/local/bin/release-cli "https://gitlab.com/api/v4/projects/gitlab-org%2Frelease-cli/packages/generic/release-cli/latest/release-cli-linux-amd64"
+    # Make the release-cli executable
+    chmod +x /usr/local/bin/release-cli
+    # Login to the GitLab registry
+    docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    # Build the image for multiple platforms and push it to the registry
+    docker buildx build --platform linux/amd64,linux/arm/v7,linux/arm64 -t "$CI_REGISTRY_IMAGE":"$CI_COMMIT_TAG" --push .
+  after_script:
+    - | # Inspect the image
+      docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+      docker buildx imagetools inspect "$CI_REGISTRY_IMAGE":"$CI_COMMIT_TAG"
+  release:
+    tag_name: '$CI_COMMIT_TAG'
+    description: '$CI_COMMIT_TAG'
+
+
+# Creates data files that are used for the current and next commit
+data-creation:
+  # Debian slimmed python image
+  image: public.ecr.aws/docker/library/python:3.9-slim
+  # Use the docker runner
+  tags:
+    - docker
+  # This job is to be run on only branch commits, as some CI variables are not available in merge commits and tag commits
+  only:
+    - branches
+  # Start this job, only if the build job passed
+  # This job is for testing performance, hence the testing stage
+  stage: test
+  before_script:
+    # Please note that the commands for creating venv and installing requirements are
+    # just put here for safety. The results of these commands are actually cached. But These
+    # commands are kept in case the cache is deleted, so that the jobs do not fail and installation
+    # is proceeded and the cache is created again
+    # Update repository packages
+    - apt-get update
+    # build-essential is needed for some python dependencies, especially sysv_ipc
+    - apt-get install -y build-essential
+    # Build a virtual environment and activate it
+    - python3 -m venv venv
+    - source ./venv/bin/activate
+    # Upgrade pip and install requirements using the wheels
+    - python3 -m pip install --upgrade pip
+    - pip install --extra-index-url https://www.piwheels.org/simple -r requirements.txt
+    # Change directory to where the data-creator script is
+    - cd src/tools/performance-testing
+  script:
+    # Predict steering angles and save them in files for each rec video which is later on plotted by performance-test job
+    - python3 data_creator.py
+  # Cache venv, so that next pipeline runs take lesser amount of time
+  # cache:
+  #   paths:
+  #     - venv/
+  # Save predicted angles for each file as an artifact
+  artifacts:
+    paths:
+      - src/tools/performance-testing/*.txt
+
+# This job plots the current predictions, actual predictions, and previous commit's predictions for each rec file
+performance-test:
+  image: public.ecr.aws/docker/library/python:3.9-slim
+  tags:
+    - docker
+  only:
+    - branches
+  # This job is dependent on data-creation job, as the current prediction angles are produced by that job and saved as an artifact in a txt file for
+  # each rec file
+  # We need the artifacts. As a result we set the artifacts flag to true
+  needs:
+    - job: data-creation
+      artifacts: true
+  stage: test
+  before_script:
+    - apt-get update
+    # Install curl to send HTTP requests and build-essentials for Numpy and Pandas
+    - apt-get install -y curl build-essential
+    - python3 -m venv venv
+    - source ./venv/bin/activate
+    - python3 -m pip install --upgrade pip
+    - pip install --extra-index-url https://www.piwheels.org/simple -r requirements.txt
+    - cd src/tools/performance-testing
+  script:
+    # We need the previous commit's predictions
+    # We use Gitlab's REST API to get the previous commit's predictions for the last successful pipeline run on the same branch
+    # Since there are 5 different videos, we need a for loop to send oen HTTP request per file that si to be retrieved
+    # the curl command only prints what it receives. hence we pass the output of that command to a file named previous_commit_predicted_steering.$i.txt using >
+    # This file is made using the touch command
+    # after the previous angle predictions are retrieved, now we have both previous predictions and current predictions. Now, we can call our script and plot the
+    # Improvements or setbacks.
+    # In the end, change directory to repositories root
+    - |
+      for i in {1..5}; do
+        curl --location --header "PRIVATE-TOKEN: $PRV_TOKEN" "https://git.chalmers.se/api/v4/projects/16117/jobs/artifacts/$CI_COMMIT_REF_NAME/raw/src/tools/performance-testing/curr-commit-steering.$i.txt?job=data-creation" \
+            > previous_commit_predicted_steering.$i.txt
+      done
+    - python3 performance_tester.py
+  after_script:
+    - cd ../../..
+  # Cache venv for future runs
+  # cache:
+  #   paths:
+  #     - venv/
+  # Save the plot pictures as artifacts
+  artifacts:
+    paths:
+      - src/tools/performance-testing/*.png

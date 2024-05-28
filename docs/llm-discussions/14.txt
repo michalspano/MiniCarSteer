@@ -1,0 +1,35 @@
+LLM model: ChatGPT3.5
+
+User:
+
+Can I get the branch where a tag was created from in gitlab ci/cd?
+
+Response:
+
+In GitLab CI/CD, you can retrieve the branch where a tag was created from using Git commands within your CI/CD pipeline. You can achieve this by utilizing the Git command `git describe` with the `--contains` option.
+
+Here's a basic example of how you could do this in your `.gitlab-ci.yml` file:
+
+```yaml
+stages:
+  - get_branch_from_tag
+
+get_branch_from_tag:
+  stage: get_branch_from_tag
+  script:
+    - tag_branch=$(git describe --contains $CI_COMMIT_TAG | cut -d'-' -f 2)
+    - echo "Branch where tag $CI_COMMIT_TAG was created from: $tag_branch"
+  only:
+    - tags
+```
+
+In this example:
+
+- We're creating a stage named `get_branch_from_tag` to retrieve the branch from which the tag was created.
+- We use the `git describe --contains $CI_COMMIT_TAG` command to get information about the tag, specifically which commit or branch it contains.
+- We then extract the branch name from the output (assuming that the output format of `git describe` is consistent).
+- Finally, we echo the branch name.
+
+This job will only run when a tag is pushed (`only: - tags`), which ensures that it's relevant only in tag-related CI/CD jobs.
+
+Please note that the exact commands may need to be adjusted based on your specific GitLab setup and the structure of your repository. Additionally, ensure that you have Git commands available in your CI/CD environment and that the necessary permissions are granted for accessing the repository.
