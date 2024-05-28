@@ -2,55 +2,27 @@ import numpy as np
 import pandas as pd
 import joblib
 
-def predict_turning(
-    magneticFieldZ, accelerationY, angularVelocityZ, heading, X_scaler, model_path
-):
-    # Load the previous scalers
-    X_scaler = joblib.load(X_scaler)
-
-    # Load the RF model
-    rf = joblib.load(model_path)
-
-    # Create X inputs
-    X = pd.DataFrame(
-        [[magneticFieldZ, accelerationY, angularVelocityZ, heading]],
-        columns=["magneticFieldZ", "accelerationY", "angularVelocityZ", "heading"],
-    )
-
-    # Scale X inputs in accordance to X scaler params
-    X_scaled = X_scaler.transform(X)
-    
-    # Predict if we are turning or not
-    predicted_class = rf.predict(X_scaled)
-
-    return predicted_class
-
-def predict_steering_angle(
-    magneticFieldZ, accelerationY, angularVelocityZ, heading, X_scaler, y_scaler, model
-):
-    # Load the previous scalers
-    X_scaler = joblib.load(X_scaler)
-    y_scaler = joblib.load(y_scaler)
-
+def predict_steering_angle(carData, model):
     # Load the RF model
     rf = joblib.load(model)
 
-    # Create X inputs
-    X = pd.DataFrame(
-        [[magneticFieldZ, accelerationY, angularVelocityZ, heading]],
-        columns=["magneticFieldZ", "accelerationY", "angularVelocityZ", "heading"],
-    )
+    # Ensure 'carData' is a dictionary with all necessary keys corresponding to the features
+    required_features = ["angularVelocityX", "angularVelocityY", "angularVelocityZ", 
+                         "magneticFieldX", "magneticFieldY", "magneticFieldZ", 
+                         "accelerationX", "accelerationY", "accelerationZ", 
+                         "heading", "pedal", "voltage", "distance"]
+                         
+    # Create a list of feature values in the correct order
+    feature_values = [carData[feature] for feature in required_features]
+    
+    # Convert the list of feature values into a 2D list as expected by the model
+    X = [feature_values]
 
-    # Scale X inputs in accordance to X scaler params
-    X_scaled = X_scaler.transform(X)
-
-    # Generate targets from X inputs
-    y = rf.predict(X_scaled)
-
-    # Perform inverse transformation on target y
-    predicted_steering_angle = y_scaler.inverse_transform(
-        y.reshape(-1, 1) # Reshape as this is a single feature and inverse transform expects 2D array
-    )
-
-    # Return steering wheel angle
-    return predicted_steering_angle[0][0]
+    # Convert to DataFrame to ensure column names match those the model was trained with
+    X_df = pd.DataFrame(X, columns=required_features)
+    
+    # Generate predictions from the input features
+    y_pred = rf.predict(X_df)
+    
+    # Return the first (and only) prediction from the list
+    return y_pred[0]

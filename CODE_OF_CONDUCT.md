@@ -54,3 +54,4 @@ Each file is labeled `X.txt` where
 ```
 
 The file name has to be referenced to wherever the ideas of that LLM discussion are used, in order to have **clear traceability**.
+The reference should be in the following format: (LLM: X.txt)

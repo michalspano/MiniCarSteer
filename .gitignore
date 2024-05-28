@@ -9,6 +9,14 @@ build
 .idea
 __pycache__
 venv
-./src/htmlcov
+
+# Coverage report
+**coverage_report**
 .coverage
 .coveragerc
+
+# Remove rec files from VCS
+*.rec
+
+# buildx output
+export

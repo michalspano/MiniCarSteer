@@ -1,0 +1,27 @@
+## LLM: GPT-3.6 ##
+
+Prompt:
+Suppose you want to generate a regular expression on the following type of format:
+```
+group_<GROUP_NR>;INTEGER;INTEGER
+```
+The integers are arbitrary. GROUP_NR is at most 100.
+
+
+ChatGPT:
+You can use the following regular expression pattern to match strings in the specified format:
+
+```
+group_(?:[1-9]|[1-9][0-9]|100);\d+;\d+
+```
+
+Explanation:
+    group_: Matches the literal string "group_".
+    (?: ... ): Non-capturing group.
+    [1-9]: Matches any digit from 1 to 9.
+    [1-9][0-9]: Matches any two-digit number from 10 to 99.
+    100: Matches the number 100.
+    ;: Matches the semicolon character.
+    \d+: Matches one or more digits (equivalent to [0-9]+).
+
+This regular expression will correctly match strings in the format "group_<GROUP_NR>;INTEGER;INTEGER", where GROUP_NR is at most 100 and INTEGER represents arbitrary integers.

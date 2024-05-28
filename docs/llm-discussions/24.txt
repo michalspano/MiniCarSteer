@@ -1,0 +1,1411 @@
+Model: gpt-4-turbo-2024-04-09
+
+User says:
+pipeline:
+# .gitlab-ci.yml - Chalmers GitLab Pipeline
+# Authors: Arumeel Kaisa, Khodaparast Omid, Michal Spano, Säfström Alexander
+image: registry.git.chalmers.se/courses/dit638/students/docker/docker:19.03.3
+
+variables:
+  DOCKER_HOST: tcp://docker:2375
+  DOCKER_TLS_CERTDIR: ""
+
+services:
+  - name: registry.git.chalmers.se/courses/dit638/students/docker/docker:19.03.3-dind
+    alias: docker
+
+stages:
+  - build
+  - deploy
+
+before_script:
+  - docker info
+  - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+
+build-and-test:
+  tags:
+    - docker-build
+  stage: build
+  only:
+    - branches
+  script:
+    - docker build --rm -f Dockerfile -t read_car_data .
+
+release_job:
+  tags:
+    - docker-build
+  stage: deploy
+  only:
+    - tags
+  before_script:
+    - |
+      apk add curl
+      mkdir -p ~/.docker/cli-plugins/
+      curl -L "https://github.com/docker/buildx/releases/download/v0.8.2/buildx-v0.8.2.linux-amd64" -o ~/.docker/cli-plugins/docker-buildx
+      chmod a+x ~/.docker/cli-plugins/docker-buildx
+      export DOCKER_CLI_EXPERIMENTAL=enabled
+      docker buildx version
+    - docker run --rm --privileged tonistiigi/binfmt --install all
+    - docker buildx create --use
+    - docker buildx inspect --bootstrap
+  script:
+    - |
+      if echo "$CI_COMMIT_TAG" | grep -E '^v\d+\.\d+\.\d+$' > /dev/null; then
+        echo "Version is valid."
+      else
+        echo "Version is invalid."
+        echo "$CI_COMMIT_TAG"
+        exit 1
+      fi
+    - |
+      apk add curl
+      curl --location --output /usr/local/bin/release-cli "https://gitlab.com/api/v4/projects/gitlab-org%2Frelease-cli/packages/generic/release-cli/latest/release-cli-linux-amd64"
+      chmod +x /usr/local/bin/release-cli
+    # Now using buildx to build and push
+    - docker buildx build --platform linux/amd64,linux/arm/v7 -t "$CI_REGISTRY_IMAGE":"$CI_COMMIT_TAG" --push .
+  after_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker buildx imagetools inspect "$CI_REGISTRY_IMAGE":"$CI_COMMIT_TAG"
+  release:
+    tag_name: '$CI_COMMIT_TAG'
+    description: '$CI_COMMIT_TAG'
+
+dockerfile:
+###############################################################################
+# Dockerfile (G9-DIT63)
+# Authors: Arumeel Kaisa, Khodaparast Omid, Michal Spano, Säfström Alexander
+
+# 1.) Build stage with python 3.9 debian (self-hosted on Chalmers GitLab)
+FROM registry.git.chalmers.se/courses/dit638/students/2024-group-09/python:3.9-slim as builder
+# cd into /app
+WORKDIR /app
+# Install system level requirements for building
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential
+# Copy requirements.txt from system to the directory in docker image
+COPY requirements.txt .
+# Install and build requiremnts as binary packages to /app/wheels
+RUN pip wheel --no-cache-dir --no-deps --wheel-dir /app/wheels -r requirements.txt
+
+###############################################################################
+
+# 2.) Runtime stage with python 3.9 debian (self-hosted on Chalmers GitLab)
+FROM registry.git.chalmers.se/courses/dit638/students/2024-group-09/python:3.9-slim
+# Install Tkinter for debug window
+RUN apt-get update && apt-get install -y python3-tk
+# Cd into /app
+WORKDIR /app
+# Copy the built wheels from the builder to the /app/wheels in runtime stage
+COPY --from=builder /app/wheels /wheels
+# Install wheels to python installation on runtime stage
+RUN pip install --no-cache /wheels/*
+# Remove the built wheels to save space
+RUN rm -rf /wheels
+# Copy src from system directory to app in docker image
+COPY src/ /app/
+# Run the python script and allow arguments
+ENTRYPOINT ["python3", "app.py"]
+
+###############################################################################
+
+error:
+$ docker buildx create --use
+95happy_herschel
+96$ docker buildx inspect --bootstrap
+97#1 [internal] booting buildkit
+98#1 pulling image moby/buildkit:buildx-stable-1
+99#1 pulling image moby/buildkit:buildx-stable-1 1.8s done
+100#1 creating container buildx_buildkit_happy_herschel0 0.0s done
+101#1 ERROR: Error response from daemon: No such image: moby/buildkit:buildx-stable-1
+102------
+103 > [internal] booting buildkit:
+104------
+105Name: happy_herschel
+106Driver: docker-container
+107Nodes:
+108Name: happy_herschel0
+109Endpoint: tcp://docker:2375
+110Error: Error response from daemon: No such image: moby/buildkit:buildx-stable-1
+111$ if echo "$CI_COMMIT_TAG" | grep -E '^v\d+\.\d+\.\d+$' > /dev/null; then # collapsed multi-line command
+112Version is valid.
+113$ apk add curl # collapsed multi-line command
+114OK: 7 MiB in 18 packages
+115 % Total % Received % Xferd Average Speed Time Time Time Current
+116 Dload Upload Total Spent Left Speed
+117100 7556k 100 7556k 0 0 7223k 0 0:00:01 0:00:01 --:--:-- 7230k
+118$ docker buildx build --platform linux/amd64,linux/arm/v7 -t "$CI_REGISTRY_IMAGE":"$CI_COMMIT_TAG" --push .
+119#1 [internal] booting buildkit
+120#1 pulling image moby/buildkit:buildx-stable-1
+121#1 pulling image moby/buildkit:buildx-stable-1 1.8s done
+122#1 creating container buildx_buildkit_happy_herschel0 0.0s done
+123#1 ERROR: Error response from daemon: No such image: moby/buildkit:buildx-stable-1
+124------
+125 > [internal] booting buildkit:
+126------
+127error: Error response from daemon: No such image: moby/buildkit:buildx-stable-1
+128Running after_script00:01
+129Running after script...
+130$ docker buildx imagetools inspect "$CI_REGISTRY_IMAGE":"$CI_COMMIT_TAG"
+131error: failed to authorize: failed to fetch anonymous token: unexpected status: 403 Forbidden
+132WARNING: after_script failed, but job will continue unaffected: exit code 1
+133Cleaning up project directory and file based variables00:01
+134ERROR: Job failed: exit code 1
+
+Fix the error
+
+
+Assistant says:
+The error you're encountering seems to be related to Docker not being able to find the image `moby/buildkit:buildx-stable-1` during the `docker buildx` initialization. This could be due to several reasons, primarily revolving around network issues or incorrect image specification. Here are steps to resolve or troubleshoot this:
+
+### Checking Network Issues
+Ensure that your GitLab CI environment has proper internet connectivity and permissions to pull Docker images. Sometimes, network configurations or proxy settings in CI environments can restrict access to Docker registries.
+
+### Image Specification and Alternatives
+1. **Check the Image Name**: It's possible that the image name `moby/buildkit:buildx-stable-1` is incorrect or deprecated. You should verify this on Docker Hub or the appropriate Docker registry.
+   
+2. **Update to a Specified Tag**: Replace `moby/buildkit:buildx-stable-1` with `moby/buildkit:buildx-stable-1.x.xx` or another valid, more specific version if available:
+   Adjust the command section as follows:
+   ```yaml
+   - docker buildx create --name mybuilder --use
+   - docker buildx inspect --bootstrap
+   ```
+   Then specify which buildkit image to use in your project's settings or as a command, e.g., 
+   ```yaml
+   - docker buildx use mybuilder
+   - docker buildx build --buildkitd-flags '--debug' --platform linux/amd64,linux/arm/v7 -t "$CI_REGISTRY_IMAGE":"$CI_COMMIT_TAG" --push .
+   ```
+
+### Updating Dockerfile and Docker Buildx
+Ensure that your Docker and Docker Buildx CLI plugin versions are compatible.
+
+### Using a Different BuildKit Image
+If a straight repair isn't possible, consider using a different version of BuildKit or another builder image entirely, which you can specify explicitly in your build command:
+```yaml
+- docker pull moby/buildkit:vX.Y.Z # valid version
+- docker tag moby/buildkit:vX.Y.Z moby/buildkit:latest
+- docker buildx create --use
+```
+
+### Logging and Debugging
+Modify your `.gitlab-ci.yml` to incorporate more logging:
+```yaml
+script:
+  - docker buildx create --name mybuilder
+  - docker buildx use mybuilder
+  - docker buildx inspect --bootstrap
+  - docker buildx build --platform linux/amd64,linux/arm/v7 -t "$CI_REGISTRY_IMAGE":"$CI_COMMIT_TAG" --push .
+```
+
+### Refresh and Retry
+Sometimes, clearing the Docker caches or restarting the daemon may fix such problems, although this may not always be directly possible in CI without access to runner or executor settings.
+
+### Final Thoughts
+- Ensure that the image name and tag you are trying to use exists and is accessible from your GitLab CI environment. This could mean interactions with private registries, credentials, and network settings need verification.
+- If possible, test your configuration locally to ensure everything is functionally correct before deploying to CI. This can isolate the problem to the CI environment if things work locally.
+
+These steps should help you diagnose and possibly fix the issue with Docker Buildx in your GitLab CI environment.
+
+User says:
+But it says in the logs that i pulled it:
+#1 [internal] booting buildkit
+120#1 pulling image moby/buildkit:buildx-stable-1
+121#1 pulling image moby/buildkit:buildx-stable-1 1.8s done
+122#1 creating container buildx_buildkit_happy_herschel0 0.0s done
+123#1 ERROR: Error response from daemon: No such image: moby/buildkit:buildx-stable-1
+124------
+125 > [internal] booting buildkit:
+126------
+
+Assistant says:
+From the logs you've provided, it appears that the Docker buildx did attempt to pull the image `moby/buildkit:buildx-stable-1` and quickly moved to the container creation phase. However, it failed afterward due to Docker reporting that it couldn't find the image. This sort of issue may arise due to several possible reasons:
+
+### Possible Issues
+
+1. **Race Condition or Cache Issue:**
+   - It could be a race condition where the image is reported as pulled but isn't properly registered before the creation of the container starts. This might happen due to caching or timing issues in the Docker environment.
+
+2. **Corrupt Image Layer:**
+   - Sometimes certain layers of the Docker image could become corrupt during download. A re-pull might resolve the issue if this is the case.
+
+### Troubleshooting Steps
+
+1. **Force Repull the Image:**
+   - Consider adding a step explicitly to pull the image and see if consistently replicates the issue:
+     ```yaml
+     - docker pull moby/buildkit:buildx-stable-1
+     - docker buildx create --use --bootstrap
+     ```
+
+2. **Clear Docker Cache:**
+   - If possible, clear Docker's cache using `docker system prune` or `docker image prune` to remove all dangling images and try the process again. This might help if the image data is corrupt:
+     ```yaml
+     before_script:
+       - docker system prune -af
+       - docker pull moby/buildkit:buildx-stable-1
+       - docker buildx create --use --bootstrap
+     ```
+
+3. **Specify Another Version of BuildKit:**
+   - As stated previously, ensure that the image `moby/buildkit:buildx-stable-1` actually exists. Sometimes, using another stable or latest known good version could resolve oddities:
+     ```yaml
+     - docker pull moby/buildkit:latest
+     - docker tag moby/buildkit:latest moby/buildkit:buildx-stable-1
+     - docker buildx create --use --bootstrap
+     ```
+
+4. **Check the Image Locally:**
+   - Pull the image locally and invariantly check if you can use it without issues. This might highlight environment differences or other hidden problems:
+     ```bash
+     docker pull moby/buildkit:buildx-stable-1
+     docker run --rm moby/buildkit:buildx-stable-1 buildctl --version
+     ```
+
+5. **Inspect and Debug:**
+   - After pulling the image, inspect it to ensure it's correctly tagged and accessible:
+     ```yaml
+     - docker pull moby/buildkit:buildx-stable-1
+     - docker image inspect moby/buildkit:buildx-stable-1
+     - docker buildx create --use
+     - docker buildx inspect --bootstrap
+     ```
+
+### Confirm Image Availability
+Ultimately, verifying `moby/buildkit:buildx-stable-1` directly from Docker Hub or the source registry is crucial. If the tag is incorrect or not up-to-date, this can consistently cause issues. If other versions or builds work correctly, it might be worthwhile to switch to those and report an issue to the maintainers if `moby/buildkit:buildx-stable-1` is indeed problematic.
+
+User says:
+Where should I put this:
+     - docker pull moby/buildkit:latest      - docker tag moby/buildkit:latest moby/buildkit:buildx-stable-1      - docker buildx create --use --bootstrap
+
+Assistant says:
+To apply the suggested changes effectively in your CI pipeline, you can incorporate these commands in the `before_script` section of the `release_job`. This prepares the environment before the actual build process that utilizes `docker buildx`. Here’s how you can arrange them:
+
+```yaml
+release_job:
+  tags:
+    - docker-build
+  stage: deploy
+  only:
+    - tags
+  before_script:
+    - apk add curl
+    - mkdir -p ~/.docker/cli-plugins/
+    - curl -L "https://github.com/docker/buildx/releases/download/v0.8.2/buildx-v0.8.2.linux-amd64" -o ~/.docker/cli-plugins/docker-buildx
+    - chmod a+x ~/.docker/cli-plugins/docker-buildx
+    - export DOCKER_CLI_EXPERIMENTAL=enabled
+    - docker buildx version
+    - docker run --rm --privileged tonistiigi/binfmt --install all
+    - docker pull moby/buildkit:latest  # Avoid potential issues with the specified version
+    - docker tag moby/buildkit:latest moby/buildkit:buildx-stable-1  # Ensure 'buildx-stable-1' tag is linked to a valid image
+    - docker buildx create --use
+    - docker buildx inspect --bootstrap
+  script:
+    - |
+      if echo "$CI_COMMIT_TAG" | grep -E '^v\d+\.\d+\.\d+$' > /dev/null; then
+        echo "Version is valid."
+      else
+        echo "Version is invalid."
+        echo "$CI_COMMIT_TAG"
+        exit 1
+      fi
+    - |
+      apk add curl
+      curl --location --output /usr/local/bin/release-cli "https://gitlab.com/api/v4/projects/gitlab-org%2Frelease-cli/packages/generic/release-cli/latest/release-cli-linux-amd64"
+      chmod +x /usr/local/bin/release-cli
+    # Now using buildx to build and push
+    - docker buildx build --platform linux/amd64,linux/arm/v7 -t "$CI_REGISTRY_IMAGE":"$CI_COMMIT_TAG" --push .
+  after_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker buildx imagetools inspect "$CI_REGISTRY_IMAGE":"$CI_COMMIT_TAG"
+  release:
+    tag_name: '$CI_COMMIT_TAG'
+    description: '$CI_COMMIT_TAG'
+```
+
+Here’s what happens in the modified `before_script`:
+
+1. **Install Dependencies and Configure docker-buildx**: Initially, ensure all necessary tools (like curl and docker-buildx plugin) are installed and configured.
+
+2. **Pull and
+
+User says:
+What happened?
+Running with gitlab-runner 16.9.1 (782c6ecb)
+2 on Docker Build Runner RiXKnZMR, system ID: s_13c23192e516
+3Preparing the "docker" executor00:04
+4Using Docker executor with image registry.git.chalmers.se/courses/dit638/students/docker/docker:19.03.3 ...
+5Starting service registry.git.chalmers.se/courses/dit638/students/docker/docker:19.03.3-dind ...
+6Authenticating with credentials from job payload (GitLab Registry)
+7Pulling docker image registry.git.chalmers.se/courses/dit638/students/docker/docker:19.03.3-dind ...
+8Using docker image sha256:0891431bfc89e11908174cc2c0fc1157c930bd74ace8b2a8134067a3628e4116 for registry.git.chalmers.se/courses/dit638/students/docker/docker:19.03.3-dind with digest registry.git.chalmers.se/courses/dit638/students/docker/docker@sha256:233d526ccac8de782078568d074ff9b846169aa34d0eb18682027b3ff6c1f6d2 ...
+9Waiting for services to be up and running (timeout 30 seconds)...
+10Authenticating with credentials from job payload (GitLab Registry)
+11Pulling docker image registry.git.chalmers.se/courses/dit638/students/docker/docker:19.03.3 ...
+12Using docker image sha256:23fb2c9b38b59433ea1913eafa12d2e15651ca0d08819dc7067d27d8f92e0428 for registry.git.chalmers.se/courses/dit638/students/docker/docker:19.03.3 with digest registry.git.chalmers.se/courses/dit638/students/docker/docker@sha256:5f9d0de7c4492667d6cb2dfd598fe25e0793ec71cc6ff15be6cf8ecdf03888a8 ...
+13Preparing environment00:00
+14Running on runner-rixknzmr-project-16117-concurrent-1 via git.ita.chalmers.se...
+15Getting source from Git repository00:01
+16Fetching changes with git depth set to 20...
+17Reinitialized existing Git repository in /builds/courses/dit638/students/2024-group-09/.git/
+18Checking out ae61c060 as detached HEAD (ref is v0.0.5)...
+19Skipping Git submodules setup
+20Executing "step_script" stage of the job script00:08
+21Using docker image sha256:23fb2c9b38b59433ea1913eafa12d2e15651ca0d08819dc7067d27d8f92e0428 for registry.git.chalmers.se/courses/dit638/students/docker/docker:19.03.3 with digest registry.git.chalmers.se/courses/dit638/students/docker/docker@sha256:5f9d0de7c4492667d6cb2dfd598fe25e0793ec71cc6ff15be6cf8ecdf03888a8 ...
+22$ apk add curl
+23fetch http://dl-cdn.alpinelinux.org/alpine/v3.10/main/x86_64/APKINDEX.tar.gz
+24fetch http://dl-cdn.alpinelinux.org/alpine/v3.10/community/x86_64/APKINDEX.tar.gz
+25(1/3) Installing nghttp2-libs (1.39.2-r1)
+26(2/3) Installing libcurl (7.66.0-r4)
+27(3/3) Installing curl (7.66.0-r4)
+28Executing busybox-1.30.1-r2.trigger
+29OK: 7 MiB in 18 packages
+30$ mkdir -p ~/.docker/cli-plugins/
+31$ curl -L "https://github.com/docker/buildx/releases/download/v0.8.2/buildx-v0.8.2.linux-amd64" -o ~/.docker/cli-plugins/docker-buildx
+32 % Total % Received % Xferd Average Speed Time Time Time Current
+33 Dload Upload Total Spent Left Speed
+34 0 0 0 0 0 0 0 0 --:--:-- --:--:-- --:--:-- 0
+35100 45.5M 100 45.5M 0 0 50.7M 0 --:--:-- --:--:-- --:--:-- 50.7M
+36$ chmod a+x ~/.docker/cli-plugins/docker-buildx
+37$ export DOCKER_CLI_EXPERIMENTAL=enabled
+38$ docker buildx version
+39github.com/docker/buildx v0.8.2 6224def4dd2c3d347eee19db595348c50d7cb491
+40$ docker run --rm --privileged tonistiigi/binfmt --install all
+41Unable to find image 'tonistiigi/binfmt:latest' locally
+42latest: Pulling from tonistiigi/binfmt
+438d4d64c318a5: Pulling fs layer
+44e9c608ddc3cb: Pulling fs layer
+45e9c608ddc3cb: Verifying Checksum
+46e9c608ddc3cb: Download complete
+478d4d64c318a5: Verifying Checksum
+488d4d64c318a5: Download complete
+498d4d64c318a5: Pull complete
+50e9c608ddc3cb: Pull complete
+51Digest: sha256:66e11bea77a5ea9d6f0fe79b57cd2b189b5d15b93a2bdb925be22949232e4e55
+52Status: Downloaded newer image for tonistiigi/binfmt:latest
+53{
+54 "supported": [
+55 "linux/amd64",
+56 "linux/arm64",
+57 "linux/riscv64",
+58 "linux/ppc64le",
+59 "linux/s390x",
+60 "linux/386",
+61 "linux/mips64le",
+62 "linux/mips64",
+63 "linux/arm/v7",
+64 "linux/arm/v6"
+65 ],
+66 "emulators": [
+67 "qemu-aarch64",
+68 "qemu-aarch64_be",
+69 "qemu-alpha",
+70 "qemu-arm",
+71 "qemu-armeb",
+72 "qemu-hexagon",
+73 "qemu-hppa",
+74 "qemu-m68k",
+75 "qemu-microblaze",
+76 "qemu-microblazeel",
+77 "qemu-mips",
+78 "qemu-mips64",
+79 "qemu-mips64el",
+80 "qemu-mipsel",
+81 "qemu-mipsn32",
+82 "qemu-mipsn32el",
+83 "qemu-or1k",
+84 "qemu-ppc",
+85 "qemu-ppc64",
+86 "qemu-ppc64le",
+87 "qemu-riscv32",
+88 "qemu-riscv64",
+89 "qemu-s390x",
+90 "qemu-sh4",
+91 "qemu-sh4eb",
+92 "qemu-sparc",
+93 "qemu-sparc32plus",
+94 "qemu-sparc64",
+95 "qemu-xtensa",
+96 "qemu-xtensaeb"
+97 ]
+98}
+99$ docker pull moby/buildkit:latest
+100latest: Pulling from moby/buildkit
+101mediaType in manifest should be 'application/vnd.docker.distribution.manifest.v2+json' not 'application/vnd.oci.image.manifest.v1+json'
+102Running after_script00:00
+103Running after script...
+104$ docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+105WARNING! Using --password via the CLI is insecure. Use --password-stdin.
+106WARNING! Your password will be stored unencrypted in /root/.docker/config.json.
+107Configure a credential helper to remove this warning. See
+108https://docs.docker.com/engine/reference/commandline/login/#credentials-store
+109Login Succeeded
+110$ docker buildx imagetools inspect "$CI_REGISTRY_IMAGE":"$CI_COMMIT_TAG"
+111Name: registry.git.chalmers.se/courses/dit638/students/2024-group-09:v0.0.5
+112MediaType: application/vnd.docker.distribution.manifest.v2+json
+113Digest: sha256:9d36081e096b3141d13cf1abe57fdc3d24dc0b5835589e9625503669e8e562ac
+114Cleaning up project directory and file based variables00:01
+115ERROR: Job failed: exit code 1
+
+Assistant says:
+From the detailed log you provided, we can see that most steps executed without error until it reached a critical issue when pulling the `moby/buildkit:latest` image. The error message was related to an unexpected media type in the image manifest:
+
+```
+100 latest: Pulling from moby/buildkit
+101 mediaType in manifest should be 'application/vnd.docker.distribution.manifest.v2+json' not 'application/vnd.oci.image.manifest.v1+json'
+```
+
+This suggests there is a discrepancy between the expected Docker image format and what was provided. This situation can occur due to compatibility issues with the Docker version being used or specifics of the image itself.
+
+### Steps to Fix or Circumvent the Issue:
+
+1. **Use a Specific Version Instead of Latest**:
+    - Instead of pulling the `latest` tag, which can sometimes lead to instability or compatibility issues, specify a particular version of `buildkit` that is known to work with your Docker version.
+  
+    ```yaml
+    - docker pull moby/buildkit:v0.9.3  # use a stable specific version
+    - docker tag moby/buildkit:v0.9.3 moby/buildkit:buildx-stable-1
+    ```
+
+2. **Upgrade Docker Version**:
+    - Ensure that the Docker server and client versions are up to date as there might be a mismatch causing this media type error due to deprecated features or outdated formats.
+
+3. **Alternative Image Source**:
+    - If `moby/buildkit` continues to show issues, consider using an alternative image that provides similar functionality, like `docker/buildx-bin`, which might not have the same manifest issues.
+
+4. **Verify Docker Compatibility**:
+    - Ensure that your GitLab runner’s Docker version is fully compatible with the OCI image format if you continue needing to use images tagged with `application/vnd.oci.image.manifest.v1+json`.
+
+5. **Docker Configuration**:
+    - Sometimes, Docker configurations might need tweaking to accept or correctly interpret different image manifest versions. This might involve configurations settings in Docker daemon or runner setup.
+
+### Adjusting Your CI YML:
+
+Given the situation, let’s adjust the CI/CD pipeline configuration to use a specific version of the `buildkit` image known to be stable:
+
+```yaml
+release_job:
+  tags:
+    - docker-build
+  stage: deploy
+  only:
+    - tags
+  before_script:
+    - apk add curl
+    - mkdir -p ~/.docker/cli-plugins/
+    - curl -L "https://github.com/docker/buildx/releases/download/v0.8.2/buildx-v0.8.2.linux-amd64" -o ~/.docker/cli-plugins/docker-buildx
+    - chmod a+x ~/.docker/cli-plugins/docker-buildx
+    - export DOCKER_CLI_EXPERIMENTAL=enabled
+    - docker buildx version
+    - docker run --rm --privileged tonistiigi/binfmt --install all
+    - docker pull moby/buildkit:v0.9.3  # specific stable version
+    - docker tag moby/buildkit:v0.9.3 moby/buildkit:buildx-stable-1
+    - docker buildx create --use
+    - docker buildx inspect --bootstrap
+  script:
+    …  # Remainder of the script remains unchanged
+```
+
+### Summary:
+
+Always ensure Docker and all dependencies are up to date to avoid compatibility issues, and where possible, rely on specific, known-good versions of images rather than using `latest` in production or CI environments.
+
+User says:
+Latest release is 0.13.2
+
+
+Assistant says:
+Given that the latest release of Docker BuildKit at the time of your query is version 0.13.2, I suggest updating the image references in your `.gitlab-ci.yml` file to use this specific version instead. Using a specific version rather than the `latest` tag provides more stability and predictability due to knowing the exact behavior of the version you are interacting with.
+
+Here’s how to update your `.gitlab-ci.yml` to use BuildKit version 0.13.2:
+
+```yaml
+release_job:
+  tags:
+    - docker-build
+  stage: deploy
+  only:
+    - tags
+  before_script:
+    - apk add curl
+    - mkdir -p ~/.docker/cli-plugins/
+    - curl -L "https://github.com/docker/buildx/releases/download/v0.8.2/buildx-v0.8.2.linux-amd64" -o ~/.docker/cli-plugins/docker-buildx
+    - chmod a+x ~/.docker/cli-plugins/docker-buildx
+    - export DOCKER_CLI_EXPERIMENTAL=enabled
+    - docker buildx version
+    - docker run --rm --privileged tonistiigi/binfmt --install all
+    - docker pull moby/buildkit:0.13.2  # Update to specific stable version
+    - docker tag moby/buildkit:0.13.2 moby/buildkit:buildx-stable-1
+    - docker buildx create --use
+    - docker buildx inspect --bootstrap
+  script:
+    …  # Remainder of the script remains unchanged
+```
+
+### Explanation of Key Changes:
+1. **Using `docker pull moby/buildkit:0.13.2`:** You specifically pull version 0.13.2 of the BuildKit. This ensures that you are using the latest stable version at the time of your query, possibly avoiding bugs or issues present in older versions.
+2. **Tagging as `moby/buildkit
+
+User says:
+docker pull moby/buildkit:v0.13.2
+100v0.13.2: Pulling from moby/buildkit
+101mediaType in manifest should be 'application/vnd.docker.distribution.manifest.v2+json' not 'application/vnd.oci.image.manifest.v1+json'
+102Running after_script00:01
+103Running after script...
+104$ docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+105WARNING! Using --password via the CLI is insecure. Use --password-stdin.
+106WARNING! Your password will be stored unencrypted in /root/.docker/config.json.
+107Configure a credential helper to remove this warning. See
+108https://docs.docker.com/engine/reference/commandline/login/#credentials-store
+109Login Succeeded
+110$ docker buildx imagetools inspect "$CI_REGISTRY_IMAGE":"$CI_COMMIT_TAG"
+
+Assistant says:
+The error you're encountering—where the media type in the image manifest does not match the expected `application/vnd.docker.distribution.manifest.v2+json` but is instead `application/vnd.oci.image.manifest.v1+json`—can result from a few issues primarily around incompatible versions, misconfigurations, or registry-specific behaviors.
+
+### Potential Solutions:
+
+1. **Check Docker Version Compatibility:**
+   Compatibility issues can arise due to the Docker Engine version in use. Make sure that the version of Docker on your CI runner supports OCI image formats. Older versions may need to be upgraded.
+
+2. **Use an Alternative Image:**
+   If `moby/buildkit` consistently fails due to manifest issues, consider switching to a different but compatible image source or custom registry that provides the same functionalities without the manifest issue.
+
+   For example:
+   ```shell
+   docker pull docker/buildx-bin:latest
+   ```
+
+   Then update your CI file:
+   ```yaml
+   before_script:
+     - docker pull docker/buildx-bin:latest
+     - docker tag docker/buildx-bin:latest moby/buildkit:latest
+   ```
+
+3. **Explicitly Specify the Image Format:**
+   Until you resolve the format issue persistently appearing with `moby/buildkit`, you might use `docker buildx` but with another base that's reliable. Alter the configuration to use another known working base image and see if that mitigates the problem:
+
+   A possible Docker alternative can be checked out in Docker Hub or other registries which maintain a standard compliance with the Docker v2 schema.
+
+4. **Modify Docker Daemon Configurations:**
+   Modify Docker daemon configurations on your CI runners to accept the `application/vnd.oci.image.manifest.v1+json` manifest. You can often do this via the `daemon.json` file typically located in `/etc/docker/`:
+   ```json
+   {
+     "features": { "buildkit": true }
+   }
+   ```
+
+5. **Reach out to Gitlab Support or Forum:**
+   If the above adjustments don’t mitigate this problem, consider reaching out for support. There might be CI-specific configurations or network interactions with the registry that are influencing how these manifests are being pulled or interpreted.
+
+### Final Thoughts
+
+It's crucial to confirm that your Docker configurations (both locally in development and within CI environments) are in sync and updated.
+
+User says:
+What if my runners cant support oci
+
+Assistant says:
+If your Docker runners can't support OCI format images, there are a few different approaches you can take to resolve or work around this incompatibility:
+
+1. **Upgrading Docker**:
+   Upgrade your Docker engine on the runners to a version that supports OCI image formats (Docker version 19.03 or higher). This is often the most straightforward solution if you have control over the environment of the runners.
+
+2. **Change Docker Configuration**:
+   Modify the Docker daemon configuration to enable experimental features, which might increase compatibility with different media types:
+   ```json
+   {
+     "experimental": true
+   }
+   ```
+   This needs to be added to the Docker daemon's configuration file, usually found at `/etc/docker/daemon.json`. After modifying, restart the Docker service.
+
+3. **Use Alternate Registry or Dockerimage**:
+   If updating Docker across your CI infrastructure isn’t feasible, consider using a different Docker image or a different registry that provides Docker images that are compatible with Docker distribution specification v2 schemas. This might require you to adjust your build processes or to find equivalent tools that don't rely on OCI formats.
+
+4. **CI Runner Settings**:
+   If using GitLab CI, consider overriding the image pulling settings by directly specifying the compatible image configurations in your `.gitlab-ci.yml`, or by tweaking the runner's configuration to use a helper image for pulling or converting image formats.
+
+5. **Fallback to Older Image**:
+   Determine if there is an older version of the needed image that uses the Docker v2 schema (`application/vnd.docker.distribution.manifest.v2+json`) instead of OCI. Use that version if it doesn’t break your build and meets security standards.
+
+6. **Custom Image Building**:
+   Build your own Docker images where you control the build environment and manifest types. You can then push these custom images to your private registry in the format that your runners can handle.
+
+7. **Hosted CI/CD Solutions**:
+   If local infrastructure upgrades and management become too cumbersome, consider using hosted CI solutions where the maintenance and updates of CI runners are managed by a third-party service, ensuring compatibility with various Docker image formats.
+
+```yaml
+before_script:
+  # Replace `moby/buildkit` with a compatible registry/image
+  - docker pull myregistry/some-docker:compatible-tag
+  - docker tag myregistry/some-docker:compatible-tag desired-tag
+  - docker buildx create --use
+  - docker buildx inspect --bootstrap
+```
+
+Implementing any of these possible solutions should help to effectively address the issue with OCI format images and allow your CI pipelines to run without disturbances. Choose the approach that best fits your operational capabilities and compliance standards.
+
+User says:
+How long ago would likely use the old manifest?
+
+Assistant says:
+The shift from the old Docker image manifest format (V1) to the new schema (V2) began around 2015. Docker V2 schema was more structured and brought about several improvements including:
+
+1. **Content-addressable image IDs.** 
+2. **Manifest lists for multi-platform support.** 
+3. **Layer federation to promote reusability.**
+
+### Timeline and Versions
+- **Docker Engine 1.10** (released in February 2016) started using manifest V2, schema 2 by default.
+- **OCI (Open Container Initiative) Image Format Specification** was first released in 2016, defining how to create an OCI image, which also
+
+User says:
+3e16c159a3e: Pull complete
+11122ec5c2908e2: Pull complete
+112Digest: sha256:11b81b8d1898eb84cd11a1528f9c0e9944b50e308168243cb2b292bd0f0e02bc
+113Status: Downloaded newer image for moby/buildkit:v0.3.0
+114docker.io/moby/buildkit:v0.3.0
+115$ docker tag moby/buildkit:v0.3.0 moby/buildkit:buildx-stable-1
+116$ docker buildx create --use
+117sad_wilson
+118$ docker buildx inspect --bootstrap
+119#1 [internal] booting buildkit
+120#1 pulling image moby/buildkit:buildx-stable-1
+121#1 pulling image moby/buildkit:buildx-stable-1 1.8s done
+122#1 creating container buildx_buildkit_sad_wilson0
+123#1 creating container buildx_buildkit_sad_wilson0 0.7s done
+124#1 DONE 2.6s
+125No help topic for 'dial-stdio'
+126No help topic for 'dial-stdio'
+127Name: sad_wilson
+128Driver: docker-container
+129Nodes:
+130Name: sad_wilson0
+131Endpoint: tcp://docker:2375
+132Error: listing workers: failed to list workers: Unavailable: failed to receive server preface within timeout
+133$ if echo "$CI_COMMIT_TAG" | grep -E '^v\d+\.\d+\.\d+$' > /dev/null; then # collapsed multi-line command
+134Version is valid.
+135$ apk add curl # collapsed multi-line command
+136OK: 7 MiB in 18 packages
+137 % Total % Received % Xferd Average Speed Time Time Time Current
+138 Dload Upload Total Spent Left Speed
+139100 7556k 100 7556k 0 0 8451k 0 --:--:-- --:--:-- --:--:-- 8442k
+140$ docker buildx build --platform linux/amd64,linux/arm/v7 -t "$CI_REGISTRY_IMAGE":"$CI_COMMIT_TAG" --push .
+141No help topic for 'dial-stdio'
+142error: listing workers for Build: failed to list workers: Unavailable: failed to receive server preface within timeout
+143Running after_script00:01
+144Running after script...
+145$ docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+146WARNING! Using --password via the CLI is insecure. Use --password-stdin.
+147WARNING! Your password will be stored unencrypted in /root/.docker/config.json.
+148Configure a credential helper to remove this warning. See
+149https://docs.docker.com/engine/reference/commandline/login/#credentials-store
+150Login Succeeded
+151$ docker buildx imagetools inspect "$CI_REGISTRY_IMAGE":"$CI_COMMIT_TAG"
+152Name: registry.git.chalmers.se/courses/dit638/students/2024-group-09:v0.0.5
+153MediaType: application/vnd.docker.distribution.manifest.v2+json
+154Digest: sha256:9d36081e096b3141d13cf1abe57fdc3d24dc0b5835589e9625503669e8e562ac
+155Cleaning up project directory and file based variables00:00
+156ERROR: Job failed: exit code 1
+
+Assistant says:
+The errors in the log you provided indicate some issues with the Docker Buildx instance, specifically related to establishing a connection with the Docker daemon (`failed to receive server preface within timeout`). These issues could be influenced by network problems, misconfigurations in the runner, or problems with Docker daemon settings. The reference to `dial-stdio` suggests there could be a problem with how the Buildx tool is trying to communicate with the Docker daemon.
+
+Here are several steps to troubleshoot and potentially resolve this issue:
+
+### 1. **Check Docker Daemon Configuration**
+Ensure your Docker daemon is configured correctly and is accessible from the environment where Buildx is running. You can verify this by attempting to run standard Docker commands like `docker info` or `docker ps`. If these commands fail, it usually indicates a problem with the Docker daemon.
+
+### 2. **Validate Network Accessibility**
+If your CI runner is on a separate host from your Docker daemon, ensure that network communications are permitted between these two on the necessary ports. Docker typically uses ports like 2375 (unencrypted traffic) or 2376 (TLS-encrypted traffic).
+
+### 3. **Ensure Correct Docker and Buildx Versions**
+Compatibility issues can arise if your Docker and Docker Buildx versions are not aligning properly. Make sure you are using compatible versions:
+
+- Update Docker and Docker Buildx to the latest stable versions.
+- Ensure all plugins and dependencies match the versions supported by your Docker engine and CI environment.
+
+### 4. **Examine Docker Buildx Settings**
+The creation and use of a Docker Buildx instance (`docker buildx create`) might not be configured correctly. Try recreating the Buildx instance with explicit settings:
+
+```yaml
+- docker buildx create --name mybuilder --use
+- docker buildx inspect --bootstrap mybuilder
+```
+
+### 5. **Check Buildx and Docker CLI Experimental Features**
+Confirm that experimental features are enabled, as some Buildx functionalities rely on these settings:
+
+```bash
+# Set these configurations in your shell or Docker configuration
+export DOCKER_CLI_EXPERIMENTAL=enabled
+```
+
+
+
+User says:
+import pandas as pd
+import joblib
+
+def predict_steering_angle(carData, model):
+    # Load the RF model
+    rf = joblib.load(model)
+
+    # Ensure 'carData' is a dictionary with all necessary keys corresponding to the features
+    required_features = ["angularVelocityX", "angularVelocityY", "angularVelocityZ", 
+                         "magneticFieldX", "magneticFieldY", "magneticFieldZ", 
+                         "accelerationX", "accelerationY", "accelerationZ", 
+                         "heading", "pedal", "voltage", "distance"]
+                         
+    # Create a list of feature values in the correct order
+    feature_values = [carData[feature] for feature in required_features]
+    
+    # Convert the list of feature values into a 2D list as expected by the model
+    X = [feature_values]
+
+    # Convert to DataFrame to ensure column names match those the model was trained with
+    X_df = pd.DataFrame(X, columns=required_features)
+    
+    # Generate predictions from the input features
+    y_pred = rf.predict(X_df)
+    
+    # Return the first (and only) prediction from the list
+    return y_pred[0]
+
+can we refactor this code to not use pandas but still work? You cannot use numpy either
+
+Assistant says:
+Yes, you can refactor the code to avoid using pandas (and also not use NumPy), relying purely on lists for handling data passed to the model. Here, the key assumption is that the model, when receiving data for prediction, can accept plain lists or similarly structured data directly.
+
+Here is the refactored version of your function `predict_steering_angle`:
+
+```python
+import joblib
+
+def predict_steering_angle(carData, model):
+    # Load the RF model
+    rf = joblib.load(model)
+
+    # Ensure 'carData' is a dictionary with all necessary keys corresponding to the features
+    required_features = ["angularVelocityX", "angularVelocityY", "angularVelocityZ", 
+                         "magneticFieldX", "magneticFieldY", "magneticFieldZ", 
+                         "accelerationX", "accelerationY", "accelerationZ", 
+                         "heading", "pedal", "voltage", "distance"]
+                         
+    # Create a list of feature values in the correct order
+    feature_values = [carData[feature] for feature in required_features]
+    
+    # Convert the list of feature values into a 2D list as expected by the model
+    X = [feature_values]
+
+    # Generate predictions from the input features. Assuming the model can accept plain list
+    y_pred = rf.predict(X)
+    
+    # Return the first (and only) prediction from the list
+    return y_pred[0]
+
+```
+
+### Key Changes and Considerations:
+1. **Removing DataFrame and Using Plain Lists**: This removal simplifies data handling but assumes that the underlying prediction model (`rf`) accepts lists directly for making predictions. This is true for many models in scikit-learn, but you will want to
+
+User says:
+home/starkbamse/Documents/2024-group-09/src/vev/lib/python3.12/site-packages/sklearn/base.py:493: UserWarning: X does not have valid feature names, but RandomForestRegressor was fitted with feature names
+  warnings.warn(
+
+Assistant says:
+The warning you're encountering is because the RandomForestRegressor model was originally trained with DataFrame input that included feature names. When using a model trained this way, the input data for predictions is also expected to include these feature names for consistency and to prevent errors related to feature order or alignment.
+
+Since you prefer not to use pandas (or NumPy), and direct list input triggers a warning due to missing feature names, you'll need a workaround to suppress or handle this warning, while still ensuring that the feature ordering is correct. Here are a few approaches to consider:
+
+### Approach 1: Suppress the Warning
+One way to manage this situation is simply to suppress the warning when making the prediction. This is the least recommended method because it hides potential issues but may be acceptable if you are confident in the correctness of your feature order.
+
+You can suppress specific warnings using Python's `warnings` library:
+
+```python
+import joblib
+import warnings
+from sklearn.exceptions import DataConversionWarning
+
+def predict_steering_angle(carData, model):
+    # Load the RF model
+    rf = joblib.load(model)
+
+    required_features = ["angularVelocityX", "angularVelocityY", "angularVelocityZ", 
+                         "magneticFieldX", "magneticFieldY", "magneticFieldZ", 
+                         "accelerationX", "accelerationY", "accelerationZ", 
+                         "heading", "pedal", "voltage", "distance"]
+
+    feature_values = [carData[feature] for feature in required_features]
+    X = [feature_values]
+
+    # Suppress the specific sklearn warning
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=UserWarning)
+        y_pred = rf.predict(X)
+    
+    return y_pred[0]
+
+```
+
+### Approach 2: Dummy Wrapper for Feature Names
+Another more structured approach involves creating a dummy class that mimics the behavior of a DataFrame well enough to satisfy the model's requirement for feature names without actually using a DataFrame. This method can carry overhead and might need adjustments depending on the complexity of the model's requirements:
+
+```python
+import joblib
+
+class FeatureWrapper:
+    def __init__(self, data, feature_names):
+        self.data = data
+        self.feature_names = feature_names
+
+    def __array__(self, dtype=None):
+        return self.data
+
+def predict_steering_angle(carData, model):
+    rf = joblib.load(model)
+
+    required_features = ["angularVelocityX", "angularVelocityY", "angularVelocityZ", 
+                         "magneticFieldX", "magneticFieldY", "magneticFieldZ", 
+                         "accelerationX", "accelerationY", "accelerationZ", 
+                         "heading", "pedal", "voltage", "distance"]
+
+    feature_values = [carData[feature] for feature in required_features]
+    X = [feature_values]
+    
+    # Wrap the data using the dummy class
+    wrapped_X = FeatureWrapper(X, required_features)
+
+    y_pred = rf.predict(wrapped_X)
+    
+    return y_pred[0]
+```
+
+### Choosing an Approach
+- **Suppressing warnings is quicker but hides useful information that could indicate problems**.
+- **Creating a dummy wrapper adheres to good practice by ensuring compatibility without suppressing warnings or errors**.
+
+Both of these methods avoid using pandas but deal with the necessary requirement for feature names in a model trained using a DataFrame.
+
+Assistant says:
+
+
+User says:
+ File "/usr/lib/python3.12/threading.py", line 1010, in run
+    self._target(*self._args, **self._kwargs)
+  File "/home/starkbamse/Documents/2024-group-09/src/app.py", line 259, in queue_processor
+    predicted_groundSteeringRequest = predict_steering_angle(
+                                      ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/starkbamse/Documents/2024-group-09/src/predict.py", line 25, in predict_steering_angle
+    y_pred = rf.predict(wrapped_X)
+             ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/starkbamse/Documents/2024-group-09/src/vev/lib/python3.12/site-packages/sklearn/ensemble/_forest.py", line 1064, in predict
+    X = self._validate_X_predict(X)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/starkbamse/Documents/2024-group-09/src/vev/lib/python3.12/site-packages/sklearn/ensemble/_forest.py", line 641, in _validate_X_predict
+    X = self._validate_data(
+        ^^^^^^^^^^^^^^^^^^^^
+  File "/home/starkbamse/Documents/2024-group-09/src/vev/lib/python3.12/site-packages/sklearn/base.py", line 633, in _validate_data
+    out = check_array(X, input_name="X", **check_params)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/starkbamse/Documents/2024-group-09/src/vev/lib/python3.12/site-packages/sklearn/utils/validation.py", line 997, in check_array
+    array = _asarray_with_order(array, order=order, dtype=dtype, xp=xp)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/starkbamse/Documents/2024-group-09/src/vev/lib/python3.12/site-packages/sklearn/utils/_array_api.py", line 521, in _asarray_with_order
+    array = numpy.asarray(array, order=order, dtype=dtype)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: object __array__ method not producing an array
+
+Assistant says:
+The error you've encountered indicates a problem with the custom class `FeatureWrapper`'s attempt to provide an array-like interface compatible with scikit-learn's expectations. Specifically, the `__array__` method is not returning an array in the format that scikit-learn's validation function (`check_array`) can handle.
+
+The issue arises from the `__array__` method either not being implemented properly or not converting the data format correctly to a NumPy array. Since you are trying to avoid using Pandas and NumPy directly in manipulating the data, let's refine the dummy class so it appropriately satisfies what scikit-learn expects during its data validation process.
+
+Though you mentioned avoiding NumPy, it is extensively integrated into scikit-learn, making its inclusion almost unavoidable if you wish to use scikit-learn effectively, particularly for interfacing custom data structures with model prediction methods. Here's how to properly implement the dummy class using NumPy, which is the lightest touch possible to facilitate compatibility:
+
+```python
+import numpy as np
+import joblib
+
+class FeatureContainer:
+    def __init__(self, features, feature_names):
+        self.features = features
+        self.feature_names = feature_names
+    
+    def __array__(self, dtype=None):
+        # Convert the list to an array with the proper dtype
+        return np.asarray(self.features, dtype=dtype)
+
+def predict_steering_angle(carData, model):
+    rf = joblib.load(model)
+
+    required_features = ["angularVelocityX", "angularVelocityY", "angularVelocityZ", 
+                         "magneticFieldX", "magneticFieldY", "magneticFieldZ", 
+                         "accelerationX", "accelerationY", "accelerationZ", 
+                         "heading", "pedal", "voltage", "distance"]
+                         
+    feature_values = [carData[feature] for feature in required_features]
+    X = [feature_values]
+
+    # Create an instance of the FeatureContainer with proper feature values and names
+    feature_container = FeatureContainer(X, required_features)
+
+    # Making prediction
+    y_pred
+
+User says:
+When building my docker file for arm it always hangs when installing build deps for scikit-learn. here is my docker file:
+###############################################################################
+# Dockerfile (G9-DIT63)
+# Authors: Arumeel Kaisa, Khodaparast Omid, Michal Spano, Säfström Alexander
+
+# 1.) Build stage with python 3.9 debian (self-hosted on Chalmers GitLab)
+FROM python:3.9-slim as builder
+# cd into /app
+WORKDIR /app
+# Install system level requirements for building
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential cmake
+# Copy requirements.txt from system to the directory in docker image
+COPY deploy-requirements.txt .
+# Install and build requiremnts as binary packages to /app/wheels
+RUN pip wheel --no-cache-dir --no-deps --wheel-dir /app/wheels -r deploy-requirements.txt
+
+###############################################################################
+
+# 2.) Runtime stage with python 3.9 debian (self-hosted on Chalmers GitLab)
+FROM python:3.9-slim
+# Install Tkinter for debug window
+RUN apt-get update && apt-get install -y python3-tk
+# Cd into /app
+WORKDIR /app
+# Copy the built wheels from the builder to the /app/wheels in runtime stage
+COPY --from=builder /app/wheels /wheels
+# Install wheels to python installation on runtime stage
+RUN pip install --no-cache /wheels/*
+# Remove the built wheels to save space
+RUN rm -rf /wheels
+# Copy src from system directory to app in docker image
+COPY src/ /app/
+# Run the python script and allow arguments
+ENTRYPOINT ["python3", "app.py"]
+
+###############################################################################
+
+
+Assistant says:
+When building Docker images for different architectures such as ARM, certain complications may arise due to differences in hardware compatibility, especially with complex Python libraries like `scikit-learn` that require native extensions to be compiled.
+
+Considering the information that the build hangs during the installation of build dependencies for `scikit-learn`, there are a few potential steps and optimizations you can consider to troubleshoot and hopefully resolve the hanging issue:
+
+### 1. **Increase Verbosity of pip**
+To get a better understanding of what's happening during the build, increase the verbosity of the `pip wheel` command. This might provide more insight into where exactly the process is hanging:
+```dockerfile
+RUN pip wheel --verbose --no-cache-dir --no-deps --wheel-dir /app/wheels -r deploy-requirements.txt
+```
+
+### 2. **Use Precompiled Binary Wheels (if available)**
+If specific wheels exist for ARM architecture for the libraries you're using, it might be useful to use a Binary wheel rather than compiling from source. Check the PyPI or other sources for pre-built wheels. Adjust the requirements file or directly install using `pip` with
+
+Assistant says:
+`*.whl` links.
+
+### 3. **Optimize your Docker Layering**
+The way Docker layers are setup and commands are run can affect build times significantly. Here, you might consider restructuring how layers are ordered or merged, although your current setup is mostly logical.
+
+### 4. **Add More Resources to Docker**
+Compiling large libraries on limited hardware can be very time-consuming. If possible, allocate more CPU or RAM to the Docker daemon during the build, especially if you're running this on a multi-core machine. 
+
+### 5. **Split Requirements**
+Sometimes, breaking down the installation into simpler steps (i.e., installing `numpy` and other heavy dependencies separately before `scikit-learn`) can avoid timeouts or hangs:
+```dockerfile
+RUN pip wheel --no-cache-dir --no-deps --wheel-dir /app/wheels numpy Cython
+RUN pip wheel --no-cache-dir --no-deps --wheel-dir /app/wheels -r deploy-requirements.txt
+```
+
+### 6. **Use Cross-Build Tools**
+Consider using a cross-compilation tool like `crossenv` which can prepare a cross-compilation environment for Python extensions:
+```dockerfile
+RUN apt-get install -y crossbuild-essential-armhf
+RUN pip install crossenv
+RUN crossenv /usr/bin/python3.9 mycrossenv
+# Use mycrossenv/bin/python to build your wheels
+```
+
+### 7. **Check Docker Output**
+Ensure that no silent errors are causing the process to hang. Review the Docker daemon and container logs to see if there are errors that are not being properly reported.
+
+### 8. **Use Multi-stage Builds**
+Your Dockerfile already uses multi-stage builds, but ensure that any heavy lifting (like compilation) is done in the builder stage and only the necessary runtime elements are in the final stage.
+
+### 9. **Health Checks**
+Add runtime health checks (not directly solving the build problem) in Docker to ensure your application not only builds but starts correctly every time:
+```dockerfile
+HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
+  CMD [ "python3", "check_script.py" ]
+```
+
+### 10. **Switch Base Images**
+In some cases, the base image might lack certain optimizations or libraries. Consider using a different base image, or one more suited or optimized for ARM, such as those tailored for Raspberry Pi or other ARM-based systems.
+
+Implement one or more of these tips to help troubleshoot and potentially resolve the hanging issue while building `scikit-learn` and other dependencies on ARM architecture using Docker.
+
+User says:
+How can I use precompiled wheels from pip3 install scikit-learn --index-url https://piwheels.org/simple
+
+
+Assistant says:
+Using precompiled wheels from `piwheels`, which hosts Python wheels specifically built for the Raspberry Pi (and generally other ARM devices), can drastically improve the installation time of packages on ARM architectures. The `piwheels` repository is particularly useful when you are working with ARM-based Docker builds because it eliminates the need to compile many complex packages from source.
+
+Here is how you can modify your Dockerfile to use precompiled wheels from `piwheels` for installing `scikit-learn`:
+
+1. **Specify the Index URL in the Requirements File**:
+   You can specify the index URL directly in your `pip install` commands or include the information in your `requirements.txt`.
+
+   If you put it directly in the Dockerfile, it would look like this:
+   ```dockerfile
+   # Adding piwheels as an extra index URL; it will use pip's regular index by default if wheel is not found in piwheels
+   RUN pip install --extra-index-url https://www.piwheels.org/simple scikit-learn
+   ```
+
+   If you want to install multiple packages from `piwheels`, it’s efficient to add them via your `requirements.txt`:
+   ```
+   --extra-index-url https://www.piwheels.org/simple
+   scikit-learn
+   ```
+   Then in your Dockerfile:
+   ```dockerfile
+   # Install dependencies from `requirements.txt`
+   RUN pip install --no-cache-dir -r deploy-requirements.txt
+   ```
+
+2. **Update Your Dockerfile**:
+   Using your existing Dockerfile structures as a base:
+
+   ```dockerfile
+   FROM python:3.9-slim as builder
+   WORKDIR /app
+
+   # Installing build dependencies
+   # This might still be necessary for other packages, but often less is required
+   RUN apt-get update && apt-get install -y --no-install-recommends \
+       gcc \
+       libatlas-base-dev  # Often required for numpy and scipy
+
+   COPY requirements.txt .
+
+   # Utilizing piwheels for fast installation of ARM-compatible prebuilt packages
+   RUN pip install --extra-index-url https://www.piwheels.org/simple -r requirements.txt 
+
+   ###############################################################################
+
+   FROM python:3.9-slim
+   WORKDIR /app
+   COPY --from=builder /usr/local/lib/python3.9/site-packages /usr/local/lib/python3.9/site-packages
+   COPY src/ /app/
+   ENTRYPOINT ["python3", "app.py"]
+   ```
+
+### Considerations
+- Always verify which packages are compatible and available from `piwheels` beforehand. Not all packages and not all versions of a package might be available.
+- Keep security in mind. Ensure that you trust the source of the binaries. While `piwheels` is widely used and trusted in the Raspberry Pi community, always ensure it's suitable for your security and reliability needs.
+- The `--extra-index-url` option allows `pip` to use PiWheels as a supplementary index
+
+User says:
+Building wheels for collected packages: sysv_ipc
+12.64   Building wheel for sysv_ipc (setup.py): started
+12.86   Building wheel for sysv_ipc (setup.py): finished with status 'error'
+12.87   error: subprocess-exited-with-error
+12.87   
+12.87   × python setup.py bdist_wheel did not run successfully.
+12.87   │ exit code: 1
+12.87   ╰─> [23 lines of output]
+12.87       ******************************************************************************
+12.87       * Setup can't determine the value of PAGE_SIZE on your system, so it will
+12.87       * default to 4096 which may not be correct.
+12.87       *
+12.87       * Please report this message and your operating system info to the package
+12.87       * maintainer listed in the README file.
+12.87       ******************************************************************************
+12.87       running bdist_wheel
+12.87       running build
+12.87       running build_ext
+12.87       building 'sysv_ipc' extension
+12.87       creating build
+12.87       creating build/temp.linux-x86_64-3.9
+12.87       gcc -Wno-unused-result -Wsign-compare -DNDEBUG -g -fwrapv -O3 -Wall -fPIC -I/usr/local/include/python3.9 -c common.c -o build/temp.linux-x86_64-3.9/common.o
+12.87       In file included from /usr/lib/gcc/x86_64-linux-gnu/12/include/syslimits.h:7,
+12.87                        from /usr/lib/gcc/x86_64-linux-gnu/12/include/limits.h:34,
+12.87                        from /usr/local/include/python3.9/Python.h:11,
+12.87                        from common.c:2:
+12.87       /usr/lib/gcc/x86_64-linux-gnu/12/include/limits.h:203:15: fatal error: limits.h: No such file or directory
+12.87         203 | #include_next <limits.h>                /* recurse down to the real one */
+12.87             |               ^~~~~~~~~~
+12.87       compilation terminated.
+12.87       error: command '/usr/bin/gcc' failed with exit code 1
+12.87       [end of output]
+12.87   
+12.87   note: This error originates from a subprocess, and is likely not a problem with pip.
+12.87   ERROR: Failed building wheel for sysv_ipc
+12.87   Running setup.py clean for sysv_ipc
+13.01 Failed to build sysv_ipc
+13.20 Installing collected packages: sysv_ipc, pytz, zipp, tzdata, tomli, threadpoolctl, six, pyparsing, protobuf, pluggy, pillow, packaging, numpy, kiwisolver, joblib, iniconfig, fonttools, exceptiongroup, cycler, coverage, scipy, python-dateutil, pytest, importlib-resources, contourpy, scikit-learn, pytest-cov, pandas, matplotlib
+13.20   Running setup.py install for sysv_ipc: started
+13.35   Running setup.py install for sysv_ipc: finished with status 'error'
+13.36   error: subprocess-exited-with-error
+13.36   
+13.36   × Running setup.py install for sysv_ipc did not run successfully.
+13.36   │ exit code: 1
+13.36   ╰─> [23 lines of output]
+13.36       ******************************************************************************
+13.36       * Setup can't determine the value of PAGE_SIZE on your system, so it will
+13.36       * default to 4096 which may not be correct.
+13.36       *
+13.36       * Please report this message and your operating system info to the package
+13.36       * maintainer listed in the README file.
+13.36       ******************************************************************************
+13.36       running install
+13.36       running build
+13.36       running build_ext
+13.36       building 'sysv_ipc' extension
+13.36       creating build
+13.36       creating build/temp.linux-x86_64-3.9
+13.36       gcc -Wno-unused-result -Wsign-compare -DNDEBUG -g -fwrapv -O3 -Wall -fPIC -I/usr/local/include/python3.9 -c common.c -o build/temp.linux-x86_64-3.9/common.o
+13.36       In file included from /usr/lib/gcc/x86_64-linux-gnu/12/include/syslimits.h:7,
+13.36                        from /usr/lib/gcc/x86_64-linux-gnu/12/include/limits.h:34,
+13.36                        from /usr/local/include/python3.9/Python.h:11,
+13.36                        from common.c:2:
+13.36       /usr/lib/gcc/x86_64-linux-gnu/12/include/limits.h:203:15: fatal error: limits.h: No such file or directory
+13.36         203 | #include_next <limits.h>                /* recurse down to the real one */
+13.36             |               ^~~~~~~~~~
+13.36       compilation terminated.
+13.36       error: command '/usr/bin/gcc' failed with exit code 1
+13.36       [end of output]
+13.36   
+13.36   note: This error originates from a subprocess, and is likely not a problem with pip.
+13.36 error: legacy-install-failure
+13.36 
+13.36 × Encountered error while trying to install package.
+13.36 ╰─> sysv_ipc
+13.36 
+13.36 note: This is an issue with the package mentioned above, not pip.
+13.36 hint: See above for output from the failure.
+13.71 
+13.71 [notice] A new release of pip is available: 23.0.1 -> 24.0
+13.71 [notice] To update, run: pip install --upgrade pip
+------
+Dockerfile:13
+--------------------
+  11 |     
+  12 |     # Utilizing piwheels for fast installation of ARM-compatible prebuilt packages
+  13 | >>> RUN pip install --extra-index-url https://www.piwheels.org/simple -r requirements.txt 
+  14 |     
+  15 |     ###############################################################################
+--------------------
+ERROR: failed to solve: process "/bin/sh -c pip install --extra-index-url https://www.piwheels.org/simple -r requirements.txt" did not complete successfully: exit code: 1
+[starkbamse@starkbamse 2024-group-09]$ 
+
+Assistant says:
+The error you've encountered relates to building the `sysv_ipc` package, which is failing because the necessary system headers are missing during the compilation of its C extensions. The specific missing file is `limits.h`, a standard include file that should be part of the development libraries provided by the system.
+
+To resolve this issue, you need to ensure that the required build dependencies are available in your Docker environment. Specifically, this error typically indicates the absence of the `libc-dev` or similar packages that include headers like `limits.h` used during C compilation.
+
+### Fixing the Issue in Dockerfile
+
+You'll have to update your Dockerfile to install the necessary development libraries before running the `pip install` command. Here's how you can do it:
+
+1. **Install Essential Build Tools and Libraries**:
+   Ensure `build-essential` and other necessary development header packages are installed. `build-essential` includes compiler tools like gcc and make, as well as required headers.
+
+2. **Update Your Dockerfile**:
+   Modify the Dockerfile to include these packages in the build environment:
+
+```dockerfile
+FROM python:3.9-slim as builder
+WORKDIR /app
+
+# Update the system and install necessary tools and libraries
+RUN apt-get update && apt-get install -y \
+    --no-install-recommends \
+    build-essential \
+    gcc \
+    libc6-dev \      # This package provides libc development libraries, including limits.h
+    libgmp-dev \     # Sometimes necessary for other libraries
+    cmake
+
+COPY requirements.txt .
+
+# Use piwheels if necessary, but first ensure all system dependencies are handled
+RUN pip install --extra-index-url https://www.piwheels.org/simple -r requirements.txt
+
+###############################################################################
+FROM python:3.9-slim
+WORKDIR /app
+
+# Now transfer only what we need for the runtime
+COPY --from=builder /usr/local/lib/python3.9/site-packages /usr/local/lib/python3.9/site-packages
+COPY src/ /app/
+
+ENTRYPOINT ["python3", "app.py"]
+```
+
+3. **Cleaning Up**: 
+   After installing the packages, a good Docker practice is to clean up the apt cache by adding `&& rm -rf /var/lib/apt/lists/*` at the end of the `RUN apt-get` command. This reduces the image size by removing unnecessary files.
+
+4. **Building the Docker Image**:
+   Try building your Docker image again. If the issue was due to a missing `limits.h` file or similar system dependencies, these steps should
+
+User says:
+Will using this dockerfile work on both amd and arm?
+
+Assistant says:
+The Dockerfile provided above is closer to being universally compatible between AMD (x86_64 architecture) and ARM platforms due to its use of the base image `python:3.9-slim` and inclusion of common build tools. However, some adjustments and considerations are still necessary to truly ensure full compatibility across both architectures:
+
+1. **Base Image**:
+   The `python:3.9-slim` image usually provides variants for multiple architectures, including both amd64 and various ARM versions (like arm32v7, arm64v8). Docker automatically pulls the appropriate architecture variant based on the host platform due to its multi-architecture support. Ensure that your Docker version supports this feature.
+
+2. **Binary Dependencies**:
+   Any binary dependencies included must be compatible or have corresponding versions available for both architectures. This is particularly significant when using external libraries or tools that may not have ARM support.
+
+3. **Build Tools and Libraries**:
+   Most common build tools and libraries like `build-essential`, `gcc`, and `libc6-dev` are available for both x86_64 and ARM platforms. Make sure that all packages installed with `apt-get` have support across the architectures. This is typically the case, but specific versions or less common tools might present exceptions.
+
+4. **Python Packages**:
+   When using PiWheels or similar repositories, it's crucial to ensure that they support all architectures required. PiWheels largely targets Raspberry Pi devices (ARM architecture), so while it's excellent for ARM, it's redundant for AMD where standard PyPI wheels suffice or are preferable.
+
+5. **Testing**:
+   Regardless of theoretical compatibility, real-world testing on both types of architecture is crucial. Run your Docker builds and functional validation on both an AMD and an ARM setup to ensure everything works as expected.
+
+6. **Docker Buildx**:
+   Consider using Docker Buildx, a Docker CLI plugin for extended build capabilities with BuildKit. Buildx supports building multi-architecture images from a single Dockerfile. You can use it to build images for both amd64 and arm64 architectures simultaneously, which is especially useful if you're distributing your software to users on different platforms.
+
+   Here’s a simple example of how to use Docker Buildx to build for both architectures:
+
+   ```bash
+   # Create a new builder which enables multi-platform capabilities
+   docker buildx create --name mybuilder --use
+   
+   # Start up the builder
+   docker buildx inspect --bootstrap
+   
+   #
+
+User says:
+FROM python:3.9-slim as builder
+WORKDIR /app
+
+# Update the system and install necessary tools and libraries
+RUN apt-get update && apt-get install -y \
+    --no-install-recommends \
+    build-essential \
+    gcc \
+    libc6-dev \      
+    libgmp-dev \   
+    cmake
+
+COPY requirements.txt .
+
+# Use piwheels if necessary, but first ensure all system dependencies are handled
+RUN pip install --extra-index-url https://www.piwheels.org/simple -r requirements.txt
+
+###############################################################################
+FROM python:3.9-slim
+WORKDIR /app
+
+# Now transfer only what we need for the runtime
+COPY --from=builder /usr/local/lib/python3.9/site-packages /usr/local/lib/python3.9/site-packages
+COPY src/ /app/
+
+ENTRYPOINT ["python3", "app.py"]
+
+I just built the image and when runnning get
+[starkbamse@starkbamse 2024-group-09]$ scripts/run.sh 
+Traceback (most recent call last):
+  File "/app/app.py", line 25, in <module>
+    import tkinter as tk
+  File "/usr/local/lib/python3.9/tkinter/__init__.py", line 37, in <module>
+    import _tkinter # If this fails your Python may not be configured for Tk
+ImportError: libtk8.6.so: cannot open shared object file: No such file or directory
+[starkbamse@starkbamse 2024-group-09]$ 
+
+Assistant says:
+The error message you are seeing indicates that the Python application running inside your Docker container is trying to use the `tkinter` package, which is a standard Python interface to the Tcl/Tk GUI toolkit. However, the necessary shared library (`libtk8.6.so`) for `Tkinter` is missing from the runtime environment in your Docker container.
+
+The missing library (`libtk8.6.so`) is part of the `tk` package that typically should be installed in the environment where you intend to use `Tkinter`. In your Dockerfile, you must make sure that this package and its dependencies are available in your final image.
+
+To fix this, you need to adjust your Dockerfile to install `tk` and possibly other required libraries in the final stage of the build (the runtime phase). Here's how you can do it:
+
+```dockerfile
+FROM python:3.9-slim as builder
+WORKDIR /app
+
+# Update the system and install necessary build tools and libraries
+RUN apt-get update && apt-get install -y \
+    --no-install-recommends \
+    build-essential \
+    gcc \
+    libc6-dev \
+    libgmp-dev \
+    cmake \
+    tk-dev  # Include tkinter development files
+
+COPY requirements.txt .
+# Use piwheels if necessary, but first ensure all system dependencies are handled
+RUN pip install --extra-index-url https://www.piwheels.org/simple -r requirements.txt
+
+#######################################################################
+
+# Runtime stage
+FROM python:3.9-slim
+WORKDIR /app
+
+# Install runtime dependencies for tkinter
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    tk \
+    libtk8.6  # Ensure the Tkinter library files are in the runtime environment
+
+# Now transfer only what we need for the runtime, including site packages
+COPY --from=builder /usr/local/lib/python3.9/site-packages /usr/local/lib/python3.9/site-packages
+COPY src/ /app/
+
+ENTRYPOINT ["python3", "app.py"]
+```
+
+### Explanation:
+
+- **tk-dev in Builder**: While you're compiling any packages that might need `tk` headers during build time, include `tk-dev` in the build environment.
+- **libtk8.6 and tk in Runtime
+
+User says:
+Its arm compatible?
+
+Assistant says:
+The Dockerfile adjustments to include `tk` and related libraries are broadly compatible across architectures, including ARM, as long as the underlying base image and the package manager (in this case, `apt`) support those architectures. Here's how you can ensure that it's ARM compatible:
+
+### Base Images
+
+The `python:3.9-slim` image is a manifest list (multi-architecture image), which includes tags for ARM architectures
+
+User says:
+COPY --from=builder /usr/local/lib/python3.9/site-packages /usr/local/lib/python3.9/site-packages What does this do?
+
+Assistant says:
+The line `COPY --from=builder /usr/local/lib/python3.9/site-packages /usr/local/lib/python3.9/site-packages` in your Dockerfile performs a critical function in the context of a multi-stage build process. Here’s a breakdown of its purpose and role:
+
+### Multi-stage Build
+
+The purpose of a multi-stage build in Docker is to separate the build environment from the runtime environment, which can significantly reduce the size of the final image. This is useful for efficiently packaging applications by including only what is necessary for runtime, excluding all the build tools and intermediate files generated during the build process.
+
+### Specifics of the COPY Command
+
+- **`--from=builder`**: This part of the `COPY` command specifies the source of the files to copy. In this case, it refers to an earlier stage in the Dockerfile that's named `builder`. This stage is responsible for all the build processes including compiling or downloading Python packages and their dependencies.
+
+- **Source Path (`/usr/local/lib/python3.9/site-packages`)**: This is the path in the builder stage where Python packages are installed. When you install a Python package using pip (or similar tools) in a virtual environment or globally in the Docker container, the installed files go into the `site-packages` directory of the corresponding Python install location. This path contains all the Python libraries and packages that have been installed in the previous build stage.
+
+- **Destination Path (`/usr/local/lib/python3.9/site-packages`)**: This is the path in the final runtime image where the Python packages from the builder stage are
+
+User says:
+ITs not host machine right?
+
+Assistant says:
+Correct, it is not the host machine. In the context of Docker, all operations described by a Dockerfile, including paths referenced in commands like `COPY`, are
+

@@ -1,35 +1,43 @@
 ###############################################################################
+# LLM: 1.txt, 2.txt, 25.txt, 24.txt
 # Dockerfile (G9-DIT63)
-# Authors: Arumeel Kaisa, Khodaparast Omid, Michal Spano, Säfström Alexander
+# Authors: Kaisa Arumeel, Omid Khodaparast, Michal Spano, Alexander Säfström
 
-# 1.) Build stage with python 3.9 debian (self-hosted on Chalmers GitLab)
-FROM registry.git.chalmers.se/courses/dit638/students/2024-group-09/python:3.9-slim as builder
-# cd into /app
+# Using ECR base image for the builder stage
+FROM public.ecr.aws/docker/library/python:3.9-slim as builder
 WORKDIR /app
-# Install system level requirements for building
-RUN apt-get update && apt-get install -y --no-install-recommends build-essential
-# Copy requirements.txt from system to the directory in docker image
+
+# Update the system and install necessary build tools and libraries
+RUN apt-get update && apt-get install -y \
+    --no-install-recommends \ 
+    build-essential \
+    gcc \
+    libc6-dev \
+    libgmp-dev \
+    cmake \
+    tk-dev
+
+# Copy the requirements file and install the dependencies
 COPY requirements.txt .
-# Install and build requiremnts as binary packages to /app/wheels
-RUN pip wheel --no-cache-dir --no-deps --wheel-dir /app/wheels -r requirements.txt
 
-###############################################################################
+# Install the dependencies from the requirements file using piwheels
+RUN pip install --extra-index-url https://www.piwheels.org/simple -r requirements.txt
 
-# 2.) Runtime stage with python 3.9 debian (self-hosted on Chalmers GitLab)
-FROM registry.git.chalmers.se/courses/dit638/students/2024-group-09/python:3.9-slim
-# Install Tkinter for debug window
-RUN apt-get update && apt-get install -y python3-tk
-# Cd into /app
+#######################################################################
+
+# Runtime stage using AWS ECR base image 
+FROM public.ecr.aws/docker/library/python:3.9-slim
 WORKDIR /app
-# Copy the built wheels from the builder to the /app/wheels in runtime stage
-COPY --from=builder /app/wheels /wheels
-# Install wheels to python installation on runtime stage
-RUN pip install --no-cache /wheels/*
-# Remove the built wheels to save space
-RUN rm -rf /wheels
-# Copy src from system directory to app in docker image
-COPY src/ /app/
-# Run the python script and allow arguments
-ENTRYPOINT ["python3", "app.py"]
 
-###############################################################################
+# Install runtime dependencies for tkinter
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    tk \
+    libtk8.6 \
+    libopenblas-dev
+
+# Now transfer only what we need for the runtime, from the builder stage
+COPY --from=builder /usr/local/lib/python3.9/site-packages /usr/local/lib/python3.9/site-packages
+# Copy the app source code to the container
+COPY src/ /app/
+# Set the entrypoint which will run the app
+ENTRYPOINT ["python3", "app.py"]

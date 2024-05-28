@@ -1,0 +1,25 @@
+LLM model: ChatGPT3.5
+
+User:
+
+regex for semantic versioning (v1.2.12) used in gitlab CI/CD
+
+Response:
+
+You can use the following regular expression to match semantic versioning (e.g., `v1.2.12`) in GitLab CI/CD:
+
+```regex
+^v\d+\.\d+\.\d+$
+```
+
+Explanation:
+- `^`: Start of the string.
+- `v`: Matches the literal character 'v'.
+- `\d+`: Matches one or more digits.
+- `\.`: Matches the literal period/dot character.
+- `\d+`: Matches one or more digits.
+- `\.`: Matches the literal period/dot character.
+- `\d+`: Matches one or more digits.
+- `$`: End of the string.
+
+This regular expression ensures that the string starts with a 'v', followed by three sequences of digits separated by periods, and then ends. This pattern matches semantic versioning strings like `v1.2.12`.

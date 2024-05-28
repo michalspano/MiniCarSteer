@@ -1,0 +1,206 @@
+Model: gpt-4-turbo-2024-04-09
+
+User says:
+pipeline:
+# .gitlab-ci.yml - Chalmers GitLab Pipeline
+# Authors: Arumeel Kaisa, Khodaparast Omid, Michal Spano, Säfström Alexander
+image: registry.git.chalmers.se/courses/dit638/students/docker/docker:19.03.3
+
+variables:
+  DOCKER_HOST: tcp://docker:2375
+  DOCKER_TLS_CERTDIR: ""
+
+services:
+  - name: registry.git.chalmers.se/courses/dit638/students/docker/docker:19.03.3-dind
+    alias: docker
+
+stages:
+  - build
+  - deploy
+
+before_script:
+  - docker info
+  - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+
+build-and-test:
+  tags:
+    - docker-build
+  stage: build
+  only:
+    - branches
+  script:
+    - docker build --rm -f Dockerfile -t read_car_data .
+
+release_job:
+  tags:
+    - docker-build
+  stage: deploy
+  only:
+    - tags
+  before_script:
+    - |
+      apk add curl
+      mkdir -p ~/.docker/cli-plugins/
+      curl -L "https://github.com/docker/buildx/releases/download/v0.8.2/buildx-v0.8.2.linux-amd64" -o ~/.docker/cli-plugins/docker-buildx
+      chmod a+x ~/.docker/cli-plugins/docker-buildx
+      export DOCKER_CLI_EXPERIMENTAL=enabled
+      docker buildx version
+    - docker run --rm --privileged tonistiigi/binfmt --install all
+    - docker buildx create --use
+    - docker buildx inspect --bootstrap
+  script:
+    - |
+      if echo "$CI_COMMIT_TAG" | grep -E '^v\d+\.\d+\.\d+$' > /dev/null; then
+        echo "Version is valid."
+      else
+        echo "Version is invalid."
+        echo "$CI_COMMIT_TAG"
+        exit 1
+      fi
+    - |
+      apk add curl
+      curl --location --output /usr/local/bin/release-cli "https://gitlab.com/api/v4/projects/gitlab-org%2Frelease-cli/packages/generic/release-cli/latest/release-cli-linux-amd64"
+      chmod +x /usr/local/bin/release-cli
+    # Now using buildx to build and push
+    - docker buildx build --platform linux/amd64,linux/arm/v7 -t "$CI_REGISTRY_IMAGE":"$CI_COMMIT_TAG" --push .
+  after_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker buildx imagetools inspect "$CI_REGISTRY_IMAGE":"$CI_COMMIT_TAG"
+  release:
+    tag_name: '$CI_COMMIT_TAG'
+    description: '$CI_COMMIT_TAG'
+
+dockerfile:
+###############################################################################
+# Dockerfile (G9-DIT63)
+# Authors: Arumeel Kaisa, Khodaparast Omid, Michal Spano, Säfström Alexander
+
+# 1.) Build stage with python 3.9 debian (self-hosted on Chalmers GitLab)
+FROM registry.git.chalmers.se/courses/dit638/students/2024-group-09/python:3.9-slim as builder
+# cd into /app
+WORKDIR /app
+# Install system level requirements for building
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential
+# Copy requirements.txt from system to the directory in docker image
+COPY requirements.txt .
+# Install and build requiremnts as binary packages to /app/wheels
+RUN pip wheel --no-cache-dir --no-deps --wheel-dir /app/wheels -r requirements.txt
+
+###############################################################################
+
+# 2.) Runtime stage with python 3.9 debian (self-hosted on Chalmers GitLab)
+FROM registry.git.chalmers.se/courses/dit638/students/2024-group-09/python:3.9-slim
+# Install Tkinter for debug window
+RUN apt-get update && apt-get install -y python3-tk
+# Cd into /app
+WORKDIR /app
+# Copy the built wheels from the builder to the /app/wheels in runtime stage
+COPY --from=builder /app/wheels /wheels
+# Install wheels to python installation on runtime stage
+RUN pip install --no-cache /wheels/*
+# Remove the built wheels to save space
+RUN rm -rf /wheels
+# Copy src from system directory to app in docker image
+COPY src/ /app/
+# Run the python script and allow arguments
+ENTRYPOINT ["python3", "app.py"]
+
+###############################################################################
+
+error:
+$ docker buildx create --use
+95happy_herschel
+96$ docker buildx inspect --bootstrap
+97#1 [internal] booting buildkit
+98#1 pulling image moby/buildkit:buildx-stable-1
+99#1 pulling image moby/buildkit:buildx-stable-1 1.8s done
+100#1 creating container buildx_buildkit_happy_herschel0 0.0s done
+101#1 ERROR: Error response from daemon: No such image: moby/buildkit:buildx-stable-1
+102------
+103 > [internal] booting buildkit:
+104------
+105Name: happy_herschel
+106Driver: docker-container
+107Nodes:
+108Name: happy_herschel0
+109Endpoint: tcp://docker:2375
+110Error: Error response from daemon: No such image: moby/buildkit:buildx-stable-1
+111$ if echo "$CI_COMMIT_TAG" | grep -E '^v\d+\.\d+\.\d+$' > /dev/null; then # collapsed multi-line command
+112Version is valid.
+113$ apk add curl # collapsed multi-line command
+114OK: 7 MiB in 18 packages
+115 % Total % Received % Xferd Average Speed Time Time Time Current
+116 Dload Upload Total Spent Left Speed
+117100 7556k 100 7556k 0 0 7223k 0 0:00:01 0:00:01 --:--:-- 7230k
+118$ docker buildx build --platform linux/amd64,linux/arm/v7 -t "$CI_REGISTRY_IMAGE":"$CI_COMMIT_TAG" --push .
+119#1 [internal] booting buildkit
+120#1 pulling image moby/buildkit:buildx-stable-1
+121#1 pulling image moby/buildkit:buildx-stable-1 1.8s done
+122#1 creating container buildx_buildkit_happy_herschel0 0.0s done
+123#1 ERROR: Error response from daemon: No such image: moby/buildkit:buildx-stable-1
+124------
+125 > [internal] booting buildkit:
+126------
+127error: Error response from daemon: No such image: moby/buildkit:buildx-stable-1
+128Running after_script00:01
+129Running after script...
+130$ docker buildx imagetools inspect "$CI_REGISTRY_IMAGE":"$CI_COMMIT_TAG"
+131error: failed to authorize: failed to fetch anonymous token: unexpected status: 403 Forbidden
+132WARNING: after_script failed, but job will continue unaffected: exit code 1
+133Cleaning up project directory and file based variables00:01
+134ERROR: Job failed: exit code 1
+
+Fix the error
+
+
+Assistant says:
+The error you're encountering seems to be related to Docker not being able to find the image `moby/buildkit:buildx-stable-1` during the `docker buildx` initialization. This could be due to several reasons, primarily revolving around network issues or incorrect image specification. Here are steps to resolve or troubleshoot this:
+
+### Checking Network Issues
+Ensure that your GitLab CI environment has proper internet connectivity and permissions to pull Docker images. Sometimes, network configurations or proxy settings in CI environments can restrict access to Docker registries.
+
+### Image Specification and Alternatives
+1. **Check the Image Name**: It's possible that the image name `moby/buildkit:buildx-stable-1` is incorrect or deprecated. You should verify this on Docker Hub or the appropriate Docker registry.
+   
+2. **Update to a Specified Tag**: Replace `moby/buildkit:buildx-stable-1` with `moby/buildkit:buildx-stable-1.x.xx` or another valid, more specific version if available:
+   Adjust the command section as follows:
+   ```yaml
+   - docker buildx create --name mybuilder --use
+   - docker buildx inspect --bootstrap
+   ```
+   Then specify which buildkit image to use in your project's settings or as a command, e.g., 
+   ```yaml
+   - docker buildx use mybuilder
+   - docker buildx build --buildkitd-flags '--debug' --platform linux/amd64,linux/arm/v7 -t "$CI_REGISTRY_IMAGE":"$CI_COMMIT_TAG" --push .
+   ```
+
+### Updating Dockerfile and Docker Buildx
+Ensure that your Docker and Docker Buildx CLI plugin versions are compatible.
+
+### Using a Different BuildKit Image
+If a straight repair isn't possible, consider using a different version of BuildKit or another builder image entirely, which you can specify explicitly in your build command:
+```yaml
+- docker pull moby/buildkit:vX.Y.Z # valid version
+- docker tag moby/buildkit:vX.Y.Z moby/buildkit:latest
+- docker buildx create --use
+```
+
+### Logging and Debugging
+Modify your `.gitlab-ci.yml` to incorporate more logging:
+```yaml
+script:
+  - docker buildx create --name mybuilder
+  - docker buildx use mybuilder
+  - docker buildx inspect --bootstrap
+  - docker buildx build --platform linux/amd64,linux/arm/v7 -t "$CI_REGISTRY_IMAGE":"$CI_COMMIT_TAG" --push .
+```
+
+### Refresh and Retry
+Sometimes, clearing the Docker caches or restarting the daemon may fix such problems, although this may not always be directly possible in CI without access to runner or executor settings.
+
+### Final Thoughts
+- Ensure that the image name and tag you are trying to use exists and is accessible from your GitLab CI environment. This could mean interactions with private registries, credentials, and network settings need verification.
+- If possible, test your configuration locally to ensure everything is functionally correct before deploying to CI. This can isolate the problem to the CI environment if things work locally.
+
+These steps should help you diagnose and possibly fix the issue with Docker Buildx in your GitLab CI environment.
+

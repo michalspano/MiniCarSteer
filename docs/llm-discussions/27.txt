@@ -1,0 +1,682 @@
+Model: gpt-4-turbo-2024-04-09
+
+User says:
+  script:
+    - |
+      if echo "$CI_COMMIT_TAG" | grep -E '^v\d+\.\d+\.\d+$' > /dev/null; then
+        echo "Version is valid."
+      else
+        echo "Version is invalid."
+        echo "$CI_COMMIT_TAG"
+        exit 1
+      fi
+    - |
+      apk add curl
+      curl --location --output /usr/local/bin/release-cli "https://gitlab.com/api/v4/projects/gitlab-org%2Frelease-cli/packages/generic/release-cli/latest/release-cli-linux-amd64"
+      chmod +x /usr/local/bin/release-cli
+      docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+      docker buildx build --platform linux/amd64,linux/arm/v7 -t "$CI_REGISTRY_IMAGE":"$CI_COMMIT_TAG" --push .
+    # Now using buildx to build and push
+  after_script:
+    - |
+      docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+      docker buildx imagetools inspect "$CI_REGISTRY_IMAGE":"$CI_COMMIT_TAG"
+  release:
+    tag_name: '$CI_COMMIT_TAG'
+    description: '$CI_COMMIT_TAG'
+
+So the reason we have the vertical bar in a CI script is because we want to preserve state? Like for example if we did docker login using just the hyphen on a separate line it would be worthless because the state is not saved?
+
+Assistant says:
+In a Continuous Integration (CI) script like the one you've provided, which appears to utilize YAML syntax common in CI systems such as GitLab CI, GitHub Actions, etc., the use of the vertical bar (`|`) serves a specific function related to the handling of multi-line string data, rather than directly involving state preservation.
+
+Here’s how the vertical bar is used and what it means in the script:
+
+### Vertical Bar (`|`) Usage:
+- In YAML, the vertical bar (`|`) is used to indicate a block of literal text. This means that the text following the `|` will be treated as a single string where newline characters are preserved as is, until the first dedent (outdent).
+  
+### Example and Explanation:
+```yaml
+script:
+  - |
+    if echo "$CI_COMMIT_TAG" | grep -E '^v\d+\.\d+\.\d+$' > /dev/null; then
+      echo "Version is valid."
+    else
+      echo "Version is invalid."
+      echo "$CI_COMMIT_TAG"
+      exit 1
+    fi
+```
+In this block:
+- The `|` after the dash tells the YAML parser that the subsequent indented text should be treated as a single string that is passed to the
+
+User says:
+But what about the other times:
+# .gitlab-ci.yml - Chalmers GitLab Pipeline
+# Authors: Arumeel Kaisa, Khodaparast Omid, Michal Spano, Säfström Alexander
+image: registry.git.chalmers.se/courses/dit638/students/docker/docker:19.03.3
+
+variables:
+  DOCKER_HOST: tcp://docker:2375
+  DOCKER_TLS_CERTDIR: ""
+
+services:
+  - name: registry.git.chalmers.se/courses/dit638/students/docker/docker:19.03.3-dind
+    alias: docker
+
+stages:
+  - build
+  - deploy
+
+
+build-and-test:
+  tags:
+    - docker-build
+  stage: build
+  only:
+    - branches
+  script:
+    - docker build --rm -f Dockerfile -t read_car_data .
+
+release_job:
+  tags:
+    - docker-build
+  stage: deploy
+  only:
+    - tags
+  before_script:
+    - apk add curl
+    - mkdir -p ~/.docker/cli-plugins/
+    - curl -L "https://github.com/docker/buildx/releases/download/v0.8.2/buildx-v0.8.2.linux-amd64" -o ~/.docker/cli-plugins/docker-buildx
+    - chmod a+x ~/.docker/cli-plugins/docker-buildx
+    - export DOCKER_CLI_EXPERIMENTAL=enabled
+    - docker buildx version
+    - docker pull moby/buildkit:v0.10.2  # Update to specific stable version
+    - docker tag moby/buildkit:v0.10.2 moby/buildkit:buildx-stable-1
+    - docker buildx create --use
+    - docker buildx inspect --bootstrap
+  script:
+    - |
+      if echo "$CI_COMMIT_TAG" | grep -E '^v\d+\.\d+\.\d+$' > /dev/null; then
+        echo "Version is valid."
+      else
+        echo "Version is invalid."
+        echo "$CI_COMMIT_TAG"
+        exit 1
+      fi
+    - |
+      apk add curl
+      curl --location --output /usr/local/bin/release-cli "https://gitlab.com/api/v4/projects/gitlab-org%2Frelease-cli/packages/generic/release-cli/latest/release-cli-linux-amd64"
+      chmod +x /usr/local/bin/release-cli
+      docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+      docker buildx build --platform linux/amd64,linux/arm/v7 -t "$CI_REGISTRY_IMAGE":"$CI_COMMIT_TAG" --push .
+    # Now using buildx to build and push
+  after_script:
+    - |
+      docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+      docker buildx imagetools inspect "$CI_REGISTRY_IMAGE":"$CI_COMMIT_TAG"
+  release:
+    tag_name: '$CI_COMMIT_TAG'
+    description: '$CI_COMMIT_TAG'
+
+Assistant says:
+In the `.gitlab-ci.yml` file you've provided, the use of the vertical bar (`|`) continues to serve the purpose of indicating a block of literal text in YAML, where the text that follows is interpreted as a single string formatted exactly as it appears, respecting newline characters. Your concern may also involve understanding how state is preserved across various script segments in such a CI environment.
+
+### Working with YAML Vertical Bar (`|`)
+The vertical bar is used in several places in your YAML configuration, particularly in the `script` and `after_script` sections. These areas often contain commands that are expected to run sequentially in a shell environment managed by the CI runner. Here, the vertical bar is used to preserve the format of the script commands, including new lines and indents, ensuring they are executed exactly as intended.
+
+#### Example:
+```yaml
+script:
+  - |
+    if echo "$CI_COMMIT_TAG" | grep -E '^v\d+\.\d+\.\d+$' > /dev/null; then
+      echo "Version is valid."
+    else
+      echo "Version is invalid."
+      echo "$CI_COMMIT_TAG"
+      exit 1
+    fi
+```
+This script checks if the commit tag follows a semantic versioning format. Using `
+
+Assistant says:
+|` ensures that the entire if-else block is read and executed as one single shell command sequence, maintaining its innate formatting and execution order.
+
+### State Preservation
+Regarding state preservation, which seems to be a part of your question, this is typically handled by the CI runner's environment rather than the YAML syntax. In a CI pipeline, each job runs in a separate environment. However, within a single job (like `build-and-test` or `release_job`), state is preserved between commands within the `script` or `before_script` blocks.
+
+For example, in your `release_job`:
+- The environment modifications made in `before_script` (like adding `curl`, setting up Docker buildx) persist throughout the lifetime of that job.
+- This means that once you log into Docker in the `script` section (`docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY`), you remain logged in for all subsequent Docker commands in that script.
+
+Here’s where the vertical pipes in multi-line scripts are also important—each command block after a `- |` is treated as a contiguous block of shell script, ensuring all commands are run in sequence within the same shell instance.
+
+### Concluding Thoughts
+In your continuous integration setup:
+- The vertical bar (`|`) in YAML is used to ensure commands are formatted and executed as intended within each job's script context.
+- State preservation between commands in the `script`, `before_script`, or `after_script` sections is handled by the CI environment itself, and not directly related to the vertical bar usage. Changes you make (like environment variables or runtime configurations) generally persist for the duration of the job, not between different jobs or stages.
+
+Thus, your script setup and use of YAML syntax properly manage command execution and state management within each job's lifecycle on your CI platform.
+
+User says:
+When I run this pipeline script in combination with my dockerfile:
+FROM public.ecr.aws/docker/library/python:3.9-slim as builder
+WORKDIR /app
+
+# Update the system and install necessary build tools and libraries
+RUN apt-get update && apt-get install -y \
+    --no-install-recommends \
+    build-essential \
+    gcc \
+    libc6-dev \
+    libgmp-dev \
+    cmake \
+    tk-dev
+
+COPY requirements.txt .
+# Use piwheels if necessary, but first ensure all system dependencies are handled
+RUN pip install --extra-index-url https://www.piwheels.org/simple -r requirements.txt
+
+#######################################################################
+
+# Runtime stage
+FROM public.ecr.aws/docker/library/python:3.9-slim
+WORKDIR /app
+
+# Install runtime dependencies for tkinter
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    tk \
+    libtk8.6
+
+# Now transfer only what we need for the runtime, including site packages
+COPY --from=builder /usr/local/lib/python3.9/site-packages /usr/local/lib/python3.9/site-packages
+COPY src/ /app/
+
+ENTRYPOINT ["python3", "app.py"]
+
+When it runs the build stage it always fails with:
+Removing intermediate container b8f45c477153
+53 ---> cff9ff8ed9b7
+54Step 3/11 : RUN apt-get update && apt-get install -y --no-install-recommends build-essential gcc libc6-dev libgmp-dev cmake tk-dev
+55 ---> Running in 8bd69678da8e
+56Get:1 http://deb.debian.org/debian bookworm InRelease [151 kB]
+57Get:2 http://deb.debian.org/debian bookworm-updates InRelease [55.4 kB]
+58Get:3 http://deb.debian.org/debian-security bookworm-security InRelease [48.0 kB]
+59Err:1 http://deb.debian.org/debian bookworm InRelease
+60 The following signatures couldn't be verified because the public key is not available: NO_PUBKEY 0E98404D386FA1D9 NO_PUBKEY 6ED0E7B82643E131 NO_PUBKEY F8D2585B8783D481
+61Err:2 http://deb.debian.org/debian bookworm-updates InRelease
+62 The following signatures couldn't be verified because the public key is not available: NO_PUBKEY 0E98404D386FA1D9 NO_PUBKEY 6ED0E7B82643E131
+63Err:3 http://deb.debian.org/debian-security bookworm-security InRelease
+64 The following signatures couldn't be verified because the public key is not available: NO_PUBKEY 54404762BBB6E853 NO_PUBKEY BDE6D2B9216EC7A8
+65Reading package lists...
+66W: GPG error: http://deb.debian.org/debian bookworm InRelease: The following signatures couldn't be verified because the public key is not available: NO_PUBKEY 0E98404D386FA1D9 NO_PUBKEY 6ED0E7B82643E131 NO_PUBKEY F8D2585B8783D481
+67E: The repository 'http://deb.debian.org/debian bookworm InRelease' is not signed.
+68W: GPG error: http://deb.debian.org/debian bookworm-updates InRelease: The following signatures couldn't be verified because the public key is not available: NO_PUBKEY 0E98404D386FA1D9 NO_PUBKEY 6ED0E7B82643E131
+69E: The repository 'http://deb.debian.org/debian bookworm-updates InRelease' is not signed.
+70W: GPG error: http://deb.debian.org/debian-security bookworm-security InRelease: The following signatures couldn't be verified because the public key is not available: NO_PUBKEY 54404762BBB6E853 NO_PUBKEY BDE6D2B9216EC7A8
+71E: The repository 'http://deb.debian.org/debian-security bookworm-security InRelease' is not signed.
+72E: Problem executing scripts APT::Update::Post-Invoke 'rm -f /var/cache/apt/archives/*.deb /var/cache/apt/archives/partial/*.deb /var/cache/apt/*.bin || true'
+73E: Sub-process returned an error code
+74The command '/bin/sh -c apt-get update && apt-get install -y --no-install-recommends build-essential gcc libc6-dev libgmp-dev cmake tk-dev' returned a non-zero code: 100
+75Cleaning up project directory and file based variables00:01
+76ERROR: Job failed: exit code 100
+
+But on the deploy stage this part never fails
+
+
+Assistant says:
+The issue you're encountering during the build stage of your Dockerfile, specifically with the `apt-get update` step fails due to the lack of valid GPG keys for the Debian repositories (in this case, Bookworm). This problem typically arises from the Debian keyring being outdated in the base image you're using, which doesn't recognize the new or updated keys that repositories currently require.
+
+### Steps to Resolve the Issue:
+To address this issue, you can explicitly update the keyring before running `apt-get update`. This should help in recognizing and verifying the current repository signatures. Here's how you can modify your Dockerfile to incorporate this fix:
+
+```Dockerfile
+FROM public.ecr.aws/docker/library/python:3.9-slim as builder
+WORKDIR /app
+
+# Install the debian keyring first to handle key issues with Debian Bookworm
+RUN apt-get update && apt-get install -y --no-install-recommends debian-archive-keyring
+
+# Update the system and install necessary build tools and libraries
+RUN apt-get update && apt-get install -y \
+    --no-install-recommends \
+    build-essential \
+    gcc \
+    libc6-dev \
+    libgmp-dev \
+    cmake \
+    tk-dev
+
+COPY requirements.txt .
+# Use piwheels if necessary, but first ensure all system dependencies are handled
+RUN pip install --extra-index-url https://www.piwheels.org/simple -r requirements.txt
+
+#######################################################################
+
+# Runtime stage
+FROM public.ecr.aws/docker/library/python:3.9-slim
+WORKDIR /app
+
+# Install runtime dependencies for tkinter
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    tk \
+    libtk8.6
+
+# Now transfer only what we need for the runtime, including site packages
+COPY --from=builder /usr/local/lib/python3.9/site-packages /usr/local/lib/python3.9/site-packages
+COPY src/ /app/
+
+ENTRYPOINT ["python3", "app.py"]
+```
+
+### Explanation:
+1. **Keyring Update**: Before attempting to update system packages, the Dockerfile now first installs `debian-archive-keyring`. This package contains the archive keys used for official Debian repositories. By updating this first, your image will have the correct keys needed to verify the newer repositories during the `apt-get update`.
+   
+2. **Re-Adding `RUN apt-get update`**: After installing the new keyring, the standard `apt-get update` and `apt-get install` commands follow to ensure all the necessary tools and libraries are installed.
+
+### Why it might not fail in the deploy stage:
+If the "deploy" stage uses another `FROM` directive or relies on an image that doesn't need to perform an `apt-get update`, or if it uses cached layers where the keys had been valid at the time of their creation, then it might not encounter the same issues. Docker layers are immutable, and if a particular layer was built when the keys were valid, subsequent uses of that layer won't repeat the `apt-get update` and thus won't fail due to the key issue. 
+
+For solid production practices, it's best to regularly update your base images and ensure all security measures, like key validations, are up-to-date to prevent build failures and security vulnerabilities.
+
+User says:
+No we use the exact same dockerfile in the deploy and build stage:
+# .gitlab-ci.yml - Chalmers GitLab Pipeline
+# Authors: Arumeel Kaisa, Khodaparast Omid, Michal Spano, Säfström Alexander
+image: registry.git.chalmers.se/courses/dit638/students/docker/docker:19.03.3
+
+variables:
+  DOCKER_HOST: tcp://docker:2375
+  DOCKER_TLS_CERTDIR: ""
+
+services:
+  - name: registry.git.chalmers.se/courses/dit638/students/docker/docker:19.03.3-dind
+    alias: docker
+
+stages:
+  - build
+  - deploy
+
+
+build-and-test:
+  tags:
+    - docker-build
+  stage: build
+  only:
+    - branches
+  script:
+    - docker build --rm -f Dockerfile -t read_car_data .
+
+release_job:
+  tags:
+    - docker-build
+  stage: deploy
+  only:
+    - tags
+  before_script:
+    - apk add curl
+    - mkdir -p ~/.docker/cli-plugins/
+    - curl -L "https://github.com/docker/buildx/releases/download/v0.8.2/buildx-v0.8.2.linux-amd64" -o ~/.docker/cli-plugins/docker-buildx
+    - chmod a+x ~/.docker/cli-plugins/docker-buildx
+    - export DOCKER_CLI_EXPERIMENTAL=enabled
+    - docker buildx version
+    - docker pull moby/buildkit:v0.10.2  # Update to specific stable version
+    - docker tag moby/buildkit:v0.10.2 moby/buildkit:buildx-stable-1
+    - docker buildx create --use
+    - docker buildx inspect --bootstrap
+  script:
+    - |
+      if echo "$CI_COMMIT_TAG" | grep -E '^v\d+\.\d+\.\d+$' > /dev/null; then
+        echo "Version is valid."
+      else
+        echo "Version is invalid."
+        echo "$CI_COMMIT_TAG"
+        exit 1
+      fi
+    - |
+      apk add curl
+      curl --location --output /usr/local/bin/release-cli "https://gitlab.com/api/v4/projects/gitlab-org%2Frelease-cli/packages/generic/release-cli/latest/release-cli-linux-amd64"
+      chmod +x /usr/local/bin/release-cli
+      docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+      docker buildx build --platform linux/amd64,linux/arm/v7 -t "$CI_REGISTRY_IMAGE":"$CI_COMMIT_TAG" --push .
+    # Now using buildx to build and push
+  after_script:
+    - |
+      docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+      docker buildx imagetools inspect "$CI_REGISTRY_IMAGE":"$CI_COMMIT_TAG"
+  release:
+    tag_name: '$CI_COMMIT_TAG'
+    description: '$CI_COMMIT_TAG'
+
+Assistant says:
+Given that the same Dockerfile is used in both the build and deploy stages of your `.gitlab-ci.yml` configuration without fail in the deploy stage, it’s interesting to consider why issues arise specifically during the build stage.
+
+### Potential Causes for Differential Behaviors:
+
+1. **Build Context or Environment**:
+    - **Docker-in-Docker Service**: Notice that the CI/CD pipeline uses Docker-in-Docker (dind) service, which might have differing state or cache mechanisms between runs, potentially affecting how the keyring and updates happen.
+    - **Cache Usage**: Docker layers can be cached, and depending on whether the cache is used or invalidated, one stage might succeed by using a previously successful layer, while another might fail when it tries to rebuild from scratch.
+
+2. **Concurrency and Timing**:
+    - GitLab CI/CD could potentially have timing issues where the key server is intermittently available or being updated during one of the job runs, affecting availability of keys and hence the success of `apt-get update`.
+
+3. **Different Runner Configurations**:
+    - If build and deploy jobs are potentially running on different runners with different configurations or states (if not explicitly specified, runners might be picked based on availability), this can affect the environment even though the Dockerfile is the same.
+
+### Suggestions to Fix or Diagnose:
+
+- **Explicitly Clear Cache**: Before the problematic command, ensure apt cache is cleared to avoid potential issues with stale data.
+  ```Dockerfile
+  RUN apt-get clean && rm -rf /var/lib/apt/lists/*
+  RUN apt-get update && apt-get install -y --no-install-recommends debian-archive-keyring
+  ```
+- **Add a Retry Mechanism**: APT transactions can sometimes fail due to network issues or key server problems, adding a retry could circumvent transient issues.
+  ```Dockerfile
+  RUN apt-get update || (sleep 5 && apt-get update)
+  ```
+
+- **Use Specific Runners (if applicable)**: If using GitLab runners, ensure both jobs run on the same runner (or similar configurations) to rule out environment discrepancies. You can do this by specifying tags for runners that are known to work or have the right setup.
+  ```yaml
+  build-and-test:
+    tags:
+      - specific-runner-tag
+  release_job:
+    tags:
+      - specific-runner-tag
+  ```
+
+- **Debug Mode**: Increase the verbosity or logging detail during the CI run to capture more details around the failure which can be instrumental in pinpointing the underlying issue.
+  ```yaml
+  script:
+    - apt-get update -o Debug::Acquire::http=true
+    ...
+  ```
+
+- **Review Base Image Tags**: Ensure that the `public.ecr.aws/docker/library/python:3.9-slim` image tag consistently refers to the same image ID across both jobs, and that it hasn’t been updated or replaced in between pipeline configurations.
+
+### Conclusion
+If these steps do not resolve or reveal the cause, further investigation could involve checking the detailed runner logs and possibly testing with an entirely different base image or environment setup to see if the problem persists. This would rule out issues specific to the current base image or its Debian version concerning key management and repository accesses.
+
+User says:
+---> 4602238ffbdc
+55Step 2/11 : WORKDIR /app
+56 ---> Running in ea46314b4f67
+57Removing intermediate container ea46314b4f67
+58 ---> a5bbf72f5aed
+59Step 3/11 : RUN apt-get update && apt-get install -y --no-install-recommends build-essential gcc libc6-dev libgmp-dev cmake tk-dev
+60 ---> Running in f2a93eb79707
+61Get:1 http://deb.debian.org/debian bookworm InRelease [151 kB]
+62Get:2 http://deb.debian.org/debian bookworm-updates InRelease [55.4 kB]
+63Get:3 http://deb.debian.org/debian-security bookworm-security InRelease [48.0 kB]
+64Err:1 http://deb.debian.org/debian bookworm InRelease
+65 The following signatures couldn't be verified because the public key is not available: NO_PUBKEY 0E98404D386FA1D9 NO_PUBKEY 6ED0E7B82643E131 NO_PUBKEY F8D2585B8783D481
+66Err:2 http://deb.debian.org/debian bookworm-updates InRelease
+67 The following signatures couldn't be verified because the public key is not available: NO_PUBKEY 0E98404D386FA1D9 NO_PUBKEY 6ED0E7B82643E131
+68Err:3 http://deb.debian.org/debian-security bookworm-security InRelease
+69 The following signatures couldn't be verified because the public key is not available: NO_PUBKEY 54404762BBB6E853 NO_PUBKEY BDE6D2B9216EC7A8
+70Reading package lists...
+71W: GPG error: http://deb.debian.org/debian bookworm InRelease: The following signatures couldn't be verified because the public key is not available: NO_PUBKEY 0E98404D386FA1D9 NO_PUBKEY 6ED0E7B82643E131 NO_PUBKEY F8D2585B8783D481
+72E: The repository 'http://deb.debian.org/debian bookworm InRelease' is not signed.
+73W: GPG error: http://deb.debian.org/debian bookworm-updates InRelease: The following signatures couldn't be verified because the public key is not available: NO_PUBKEY 0E98404D386FA1D9 NO_PUBKEY 6ED0E7B82643E131
+74E: The repository 'http://deb.debian.org/debian bookworm-updates InRelease' is not signed.
+75W: GPG error: http://deb.debian.org/debian-security bookworm-security InRelease: The following signatures couldn't be verified because the public key is not available: NO_PUBKEY 54404762BBB6E853 NO_PUBKEY BDE6D2B9216EC7A8
+76E: The repository 'http://deb.debian.org/debian-security bookworm-security InRelease' is not signed.
+77E: Problem executing scripts APT::Update::Post-Invoke 'rm -f /var/cache/apt/archives/*.deb /var/cache/apt/archives/partial/*.deb /var/cache/apt/*.bin || true'
+78E: Sub-process returned an error code
+79The command '/bin/sh -c apt-get update && apt-get install -y --no-install-recommends build-essential gcc libc6-dev libgmp-dev cmake tk-dev' returned a non-zero code: 100
+80Cleaning up project directory and file based variables00:01
+81ERROR: Job failed: exit code 100
+
+In the build stage could we add these keys somehow?
+
+Assistant says:
+Yes, you can certainly address the missing GPG key issue in your build stage by manually adding the necessary keys to your Docker image. This issue occurs because the Debian image you are using might not have the most current keys required to verify the packages from the repository.
+
+To resolve the issue of missing GPG keys during the build stage, you can add a step to your Dockerfile that imports these keys. Use the `apt-key` command to add the necessary keys before running the `apt-get update` command. Here is how you can update your Dockerfile to include the keys:
+
+### Updated Dockerfile Snippet:
+
+```dockerfile
+FROM public.ecr.aws/docker/library/python:3.9-slim as builder
+WORKDIR /app
+
+# Add missing GPG keys
+RUN apt-get update -qq && apt-get install -y --no-install-recommends gnupg \
+    && apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 0E98404D386FA1D9 \
+    && apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 6ED0E7B82643E131 \
+    && apt-key adv --keyserver keyserver.ubuntu.com --recv-keys F8D2585B8783D481 \
+    && apt
+
+User says:
+No in the pipeline
+
+Assistant says:
+Adding GPG keys directly within a GitLab CI pipeline involves modifying your `.gitlab-ci.yml` script section to include commands that install the required keys before attempting to use `apt-get update`. These keys are necessary for verifying the packages from the Debian repositories, as seen from the errors in your build logs.
+
+Here is how you can modify the `script` section of your `.gitlab-ci.yml` to include steps for adding GPG keys to resolve the issue:
+
+### Modifying the `.gitlab-ci.yml`:
+
+You can insert a few commands to add the missing GPG keys directly before running `docker build` commands in your pipeline. This ensures that the build process has all necessary keys to proceed with installing the packages without verification errors.
+
+#### Example of adapted `.gitlab-ci.yml`:
+
+```yaml
+build-and-test:
+  tags:
+    - docker-build
+  stage: build
+  only:
+    - branches
+  script:
+    - echo "Adding GPG keys..."
+    - docker run --rm registry.git.chalmers.se/courses/dit638/students/docker/docker:19.03.3 /bin/sh -c "apt-get update && apt-get install -y gnupg && \
+      apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 0E98404D386FA1D9 && \
+      apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 6ED0E7B82643E131 && \
+      apt-key adv --keyserver keyserver.ubuntu.com --recv-keys F8D2585B8783D481"
+    - echo "Building the Docker image..."
+    - docker build --rm -f Dockerfile -t read_car_data .
+
+release_job:
+  tags:
+    - docker-build
+  stage: deploy
+  only:
+    - tags
+  before_script
+
+User says:
+# .gitlab-ci.yml - Chalmers GitLab Pipeline
+# Authors: Arumeel Kaisa, Khodaparast Omid, Michal Spano, Säfström Alexander
+image: registry.git.chalmers.se/courses/dit638/students/docker/docker:19.03.3
+
+variables:
+  DOCKER_HOST: tcp://docker:2375
+  DOCKER_TLS_CERTDIR: ""
+
+services:
+  - name: registry.git.chalmers.se/courses/dit638/students/docker/docker:19.03.3-dind
+    alias: docker
+
+stages:
+  - build
+  - deploy
+
+
+build-and-test:
+  tags:
+    - docker-build
+  stage: build
+  only:
+    - branches
+  script:
+    - docker build --rm -f Dockerfile -t read_car_data .
+
+release_job:
+  tags:
+    - docker-build
+  stage: deploy
+  only:
+    - tags
+  before_script:
+    - apk add curl
+    - mkdir -p ~/.docker/cli-plugins/
+    - curl -L "https://github.com/docker/buildx/releases/download/v0.8.2/buildx-v0.8.2.linux-amd64" -o ~/.docker/cli-plugins/docker-buildx
+    - chmod a+x ~/.docker/cli-plugins/docker-buildx
+    - export DOCKER_CLI_EXPERIMENTAL=enabled
+    - docker buildx version
+    - docker pull moby/buildkit:v0.10.2  # Update to specific stable version
+    - docker tag moby/buildkit:v0.10.2 moby/buildkit:buildx-stable-1
+    - docker buildx create --use
+    - docker buildx inspect --bootstrap
+  script:
+    - |
+      if echo "$CI_COMMIT_TAG" | grep -E '^v\d+\.\d+\.\d+$' > /dev/null; then
+        echo "Version is valid."
+      else
+        echo "Version is invalid."
+        echo "$CI_COMMIT_TAG"
+        exit 1
+      fi
+    - |
+      apk add curl
+      curl --location --output /usr/local/bin/release-cli "https://gitlab.com/api/v4/projects/gitlab-org%2Frelease-cli/packages/generic/release-cli/latest/release-cli-linux-amd64"
+      chmod +x /usr/local/bin/release-cli
+      docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+      docker buildx build --platform linux/amd64,linux/arm/v7 -t "$CI_REGISTRY_IMAGE":"$CI_COMMIT_TAG" --push .
+    # Now using buildx to build and push
+  after_script:
+    - |
+      docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+      docker buildx imagetools inspect "$CI_REGISTRY_IMAGE":"$CI_COMMIT_TAG"
+  release:
+    tag_name: '$CI_COMMIT_TAG'
+    description: '$CI_COMMIT_TAG'
+
+
+can we modify the build and test job to also build for arm but just not push it anywhere?
+
+Assistant says:
+Certainly! You can modify the `build-and-test` job in your `.gitlab-ci.yml` file to also build for ARM architecture, without pushing it to a registry. You can leverage Docker Buildx, which is a Docker CLI plugin for extended build capabilities, including building multi-platform images.
+
+Here's how you can include ARM builds in your `build-and-test` job, leveraging Docker Buildx:
+
+### Modified `.gitlab-ci.yml` for ARM build:
+
+```yaml
+build-and-test:
+  tags:
+    - docker-build
+  stage: build
+  only:
+    - branches
+  script:
+    # Set up Docker Buildx (if not already set up in global config)
+    - apk add --no-cache curl
+    - mkdir -p ~/.docker/cli-plugins/
+    - curl -L "https://github.com/docker/buildx/releases/download/v0.8.2/buildx-v0.8.2.linux-amd64" -o ~/.docker/cli-plugins/docker-buildx
+    - chmod a+x ~/.docker/cli-plugins/docker-buildx
+    - export DOCKER_CLI_EXPERIMENTAL=enabled
+    - docker buildx version
+    - docker pull moby/buildkit:v0.10.2  # Update to a specific stable version of buildkit
+    - docker tag moby/buildkit:v0.10.2 moby/buildkit:buildx-stable-1
+    - docker buildx create --use
+    - docker buildx inspect --bootstrap
+
+    # Build for multiple platforms but don't push
+    - docker buildx build --platform linux/amd64,linux/arm/v7 -t read_car_data:latest --load .
+```
+
+### Explanation:
+
+- **Set up Docker Buildx**: This section sets up Docker Buildx if it’s not already included in the runner's global Docker configuration. It installs the plugin, sets up necessary configurations, and verifies the setup. This setup might already exist in your `before_script` for other jobs
+
+User says:
+When running my project on ARM:
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.9/site-packages/numpy/core/__init__.py", line 24, in <module>
+    from . import multiarray
+  File "/usr/local/lib/python3.9/site-packages/numpy/core/multiarray.py", line 10, in <module>
+    from . import overrides
+  File "/usr/local/lib/python3.9/site-packages/numpy/core/overrides.py", line 8, in <module>
+    from numpy.core._multiarray_umath import (
+ImportError: libopenblas.so.0: cannot open shared object file: No such file or directory
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.9/site-packages/numpy/__init__.py", line 130, in <module>
+    from numpy.__config__ import show as show_config
+  File "/usr/local/lib/python3.9/site-packages/numpy/__config__.py", line 4, in <module>
+    from numpy.core._multiarray_umath import (
+  File "/usr/local/lib/python3.9/site-packages/numpy/core/__init__.py", line 50, in <module>
+    raise ImportError(msg)
+ImportError:
+
+IMPORTANT: PLEASE READ THIS FOR ADVICE ON HOW TO SOLVE THIS ISSUE!
+
+Importing the numpy C-extensions failed. This error can happen for
+many reasons, often due to issues with your setup or how NumPy was
+installed.
+
+We have compiled some common reasons and troubleshooting tips at:
+
+    https://numpy.org/devdocs/user/troubleshooting-importerror.html
+
+Please note and check the following:
+
+  * The Python version is: Python3.9 from "/usr/local/bin/python3"
+  * The NumPy version is: "1.26.4"
+
+and make sure that they are the versions you expect.
+Please carefully study the documentation linked above for further help.
+
+Original error was: libopenblas.so.0: cannot open shared object file: No such file or directory
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/app/app.py", line 21, in <module>
+    import numpy, sysv_ipc  # to access the shared memory
+  File "/usr/local/lib/python3.9/site-packages/numpy/__init__.py", line 135, in <module>
+    raise ImportError(msg) from e
+ImportError: Error importing numpy: you should not try to import numpy from
+        its source directory; please exit the numpy source tree, and relaunch
+        your python interpreter from there.
+
+Assistant says:
+The error message you're encountering suggests that the ARM build of your Docker container is missing the `libopenblas` library, which is a dependency for NumPy when it uses certain mathematical operations. This can commonly occur when porting applications to ARM architectures because the necessary libraries or packages might not be automatically included or might require different versions tailored for ARM.
+
+To resolve this issue, you should ensure that `libopenblas` is installed in your Docker container. You can do this by modifying your Dockerfile to explicitly install the library.
+
+### Step-by-Step Solution:
+
+1. **Update the Dockerfile**: Include the installation of `libopenblas` in the Dockerfile used to create your Docker container. Depending on the base OS of your Docker image, the method to install the library will differ. For Debian-based distributions (like the one you seem to be using with Python 3.9-slim), you can use `apt-get` to install it.
+
+2. **Modify Dockerfile**:
+   ```dockerfile
+   FROM public.ecr.aws/docker/library/python:3.9-slim as builder
+   WORKDIR /app
+
+   # Update system libraries and install dependencies
+   RUN apt-get update && apt-get install -y \
+       build-essential \
+       libopenblas-dev  # Add this line to install OpenBLAS
+       gcc \
+       libc6-dev \
+       libgmp-dev \
+       cmake \
+       tk-dev
+
+   # Continue with your existing steps
+   ```
+
+3. **Rebuild the Docker Image**: After updating the Dockerfile, rebuild your Docker image to ensure that the OpenBLAS library is included in the new image.
+
+4. **Test the Application**: Run your application again on the ARM architecture to confirm that the issue has been resolved.
+
+### Note on Cross-Platform Dependency Management:
+
+- **Dependencies on Different Architectures**: Some dependencies might behave differently or have different prerequisites
+

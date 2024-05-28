@@ -1,0 +1,1 @@
+The datasets in this folder only include values when the groundSteeringRequest was not 0.

@@ -1,60 +1,96 @@
+# LLM: 7.txt, 8.txt, 9.txt
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error
-from sklearn.preprocessing import MinMaxScaler
 import matplotlib.pyplot as plt
-import joblib
+from joblib import dump
 from sklearn.model_selection import GridSearchCV
 import numpy as np
-import time
-plt.switch_backend('TkAgg')
+from time import time
+plt.switch_backend("TkAgg")
 # Initialize grid search params
 param_grid = {
-    "n_estimators": [80, 90, 100, 150],
-    "max_depth": [None, 2, 3, 4, 5, 10],
-    "min_samples_split": [2, 3, 5, 7],
-    "min_samples_leaf": [1, 2, 3, 4, 5],
-    "bootstrap": [True, False],
+    "n_estimators": [
+        500,
+    ],
+    "max_depth": [None, 2, 3, 4,],
+    "min_samples_split": [2, 3,],
+    "min_samples_leaf": [1, 2, 3],
+    "bootstrap": [True],
 }
 
 
 # Initialize empty DataFrames for features and target
 joined_features = pd.DataFrame(
-    columns=["magneticFieldZ", "accelerationY", "angularVelocityZ", "heading"]
+    columns=[
+        "angularVelocityX",
+        "angularVelocityY",
+        "angularVelocityZ",
+        "magneticFieldX",
+        "magneticFieldY",
+        "magneticFieldZ",
+        "accelerationX",
+        "accelerationY",
+        "accelerationZ",
+        "heading",
+        "pedal",
+        "voltage",
+        "distance",
+    ]
 )
-joined_targets = pd.DataFrame(columns=["steering"])
+joined_targets = pd.DataFrame(columns=["groundSteeringRequest"])
 
-# Loop through the files for 6 cars
-for i in range(1, 7):  # 1 to 6 inclusive
+# Loop through the files for 6 cars. LLM: 6.txt
+for i in range(1, 6):  # 1 to 6 inclusive
     # Setup the paths to read from
-    steering_file = f"../datasets/nonzero/car.{i}.steering.txt"
-    magneticZ_file = f"../datasets/nonzero/car.{i}.mag.z.txt"
-    accelerationY_file = f"../datasets/nonzero/car.{i}.acceleration.y.txt"
-    velocityZ_file = f"../datasets/nonzero/car.{i}.velocity.z.txt"
-    heading_file = f"../datasets/nonzero/car.{i}.heading.txt"
-
+    carData = f"../datasets/car.{i}.txt"
     # Read datasets into dataframes
-    steering = pd.read_csv(steering_file, names=["steering"])
-    magneticZ = pd.read_csv(magneticZ_file, names=["magneticFieldZ"])
-    accelerationY = pd.read_csv(accelerationY_file, names=["accelerationY"])
-    velocityZ = pd.read_csv(velocityZ_file, names=["angularVelocityZ"])
-    heading = pd.read_csv(heading_file, names=["heading"])
-    if (
-        len(steering) == 0
-        or len(magneticZ) == 0
-        or len(accelerationY) == 0
-        or len(velocityZ) == 0
-        or len(heading) ==0
-    ):
-        raise Exception("0 Length df encountered")
+    car = pd.read_csv(
+        carData,
+        sep=",",
+        header=0,
+        names=[
+            "groundSteeringRequest",
+            "angularVelocityX",
+            "angularVelocityY",
+            "angularVelocityZ",
+            "magneticFieldX",
+            "magneticFieldY",
+            "magneticFieldZ",
+            "accelerationX",
+            "accelerationY",
+            "accelerationZ",
+            "heading",
+            "pedal",
+            "voltage",
+            "distance",
+        ],
+    )
     # Concatenate dataframes into single feature set
-    features = pd.concat([magneticZ, accelerationY, velocityZ, heading], axis=1)
-
+    features = car[
+        [
+            "angularVelocityX",
+            "angularVelocityY",
+            "angularVelocityZ",
+            "magneticFieldX",
+            "magneticFieldY",
+            "magneticFieldZ",
+            "accelerationX",
+            "accelerationY",
+            "accelerationZ",
+            "heading",
+            "pedal",
+            "voltage",
+            "distance",
+        ]
+    ]
     # Concatenate dataframes with previous dataframes
     joined_features = pd.concat([joined_features, features], axis=0, ignore_index=True)
-    joined_targets = pd.concat([joined_targets, steering], axis=0, ignore_index=True)
-
+    target = car[["groundSteeringRequest"]].reset_index(
+        drop=True
+    )  # Ensure it's a DataFrame
+    joined_targets = pd.concat([joined_targets, target], axis=0, ignore_index=True)
 
 X = joined_features
 y = joined_targets.values.reshape(
@@ -63,20 +99,8 @@ y = joined_targets.values.reshape(
 
 # Split X input and target y into their respective datasets
 X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, random_state=42
+    X, y, test_size=0.01, random_state=42
 )
-
-# Setup scalers
-X_scaler = MinMaxScaler()
-y_scaler = MinMaxScaler()
-
-# Scale X input
-X_train_scaled = X_scaler.fit_transform(X_train)
-X_test_scaled = X_scaler.transform(X_test)
-
-# Scale targets
-y_train_scaled = y_scaler.fit_transform(y_train)
-y_test_scaled = y_scaler.transform(y_test)
 
 # Initialize the RF model with a random state for reproducibility
 model = RandomForestRegressor(random_state=42)
@@ -91,20 +115,33 @@ grid_search = GridSearchCV(
     scoring="neg_mean_squared_error",
 )
 
-# Train model with Grid Search using scaled inputs and targets
-grid_search.fit(X_train_scaled, y_train_scaled.ravel())
+# Train model with Grid Search using inputs and targets
+grid_search.fit(X_train, y_train.ravel())
 
 
 best_model = grid_search.best_estimator_
-predictions_scaled = best_model.predict(X_test_scaled)
+predictions = best_model.predict(X_test)
 print("Best Parameters:", grid_search.best_params_)
-
-# Inverse transform predictions to get them back on the original target scale
-predictions = y_scaler.inverse_transform(predictions_scaled.reshape(-1, 1))
 
 # Compute MSE on predictions
 mse = mean_squared_error(y_test, predictions)
 print("MSE: ", mse)
+
+# Extract feature importances
+importances = best_model.feature_importances_
+
+# Convert the feature importances to a Series for easy plotting
+importances_series = pd.Series(importances, index=joined_features.columns)
+
+# Sort the feature importances for better visualization
+sorted_importances = importances_series.sort_values(ascending=False)
+
+plt.figure(figsize=(10, 6))
+sorted_importances.plot(kind="bar")
+plt.title("Feature Importances")
+plt.ylabel("Importance")
+plt.xlabel("Features")
+plt.show()
 
 plt.figure(figsize=(10, 6))
 
@@ -128,7 +165,5 @@ plt.legend()
 plt.show()
 
 # Save model and scalers
-model_id = str(time.time())
-joblib.dump(best_model, model_id + "-model.joblib")
-joblib.dump(X_scaler, model_id + "-feature-scaler.joblib")
-joblib.dump(y_scaler, model_id + "-targets-scaler.joblib")
+model_id = str(time())
+dump(best_model, model_id + "-model.joblib")
